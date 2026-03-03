@@ -10,6 +10,9 @@
 - 可视化控制台
 - Docker 部署
 - GitHub Actions 持续集成
+- GitHub Pages 静态演示版
+- GHCR 镜像自动发布
+- Render / Railway 云端部署配置
 
 ## 技术栈
 
@@ -36,6 +39,40 @@ docker compose up --build
 ```
 
 默认数据文件会持久化到 `./data/autotest.db`。
+
+## 发布
+
+### GitHub Actions
+
+仓库已内置三个工作流：
+
+- `CI`: 运行测试
+- `Pages`: 将 `docs/` 发布到 `5.py` 自己的 GitHub Pages
+- `Docker Publish`: 将镜像发布到 `ghcr.io/xuzhidong-netizen/autotest-platform`
+
+### GitHub Pages
+
+静态版源码位于 `docs/`，适合展示平台 UI，也支持连接真实 API。
+
+建议在 GitHub 仓库设置中将 Pages Source 设为 `GitHub Actions`。
+
+如果静态站要连接云端后端，请在后端环境变量中配置 `CORS_ORIGINS`。
+
+### 云端部署
+
+仓库内已包含：
+
+- `Dockerfile`
+- `docker-compose.yml`
+- `render.yaml`
+- `railway.json`
+
+如果你配置了仓库 Secrets：
+
+- `RENDER_API_KEY`
+- `RENDER_SERVICE_ID`
+
+则 `Render Deploy` 工作流会在推送到 `main` 后自动触发部署。
 
 ## 核心能力
 

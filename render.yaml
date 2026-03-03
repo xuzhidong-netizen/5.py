@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: autotest-platform
+    runtime: docker
+    plan: free
+    autoDeploy: true

@@ -11,6 +11,11 @@ class Settings(BaseModel):
     auto_seed_demo: bool = True
     request_timeout_seconds: int = 15
     static_dir: Path = Path(__file__).parent / "static"
+    cors_origins: list[str] = [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "https://xuzhidong-netizen.github.io",
+    ]
 
 
 @lru_cache
@@ -19,4 +24,12 @@ def get_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", "sqlite:///./autotest.db"),
         auto_seed_demo=os.getenv("AUTO_SEED_DEMO", "true").lower() == "true",
         request_timeout_seconds=int(os.getenv("REQUEST_TIMEOUT_SECONDS", "15")),
+        cors_origins=[
+            item.strip()
+            for item in os.getenv(
+                "CORS_ORIGINS",
+                "http://127.0.0.1:8000,http://localhost:8000,https://xuzhidong-netizen.github.io",
+            ).split(",")
+            if item.strip()
+        ],
     )

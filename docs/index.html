@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>5.py 自动化测试平台</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="glow glow-a"></div>
+    <div class="glow glow-b"></div>
+    <main class="page">
+      <section class="hero card">
+        <div>
+          <p class="tag">5.py Pages Edition</p>
+          <h1>自动化测试平台</h1>
+          <p class="lede">
+            这是 `5.py` 的 GitHub Pages 静态发布版。它可以离线演示测试平台的核心信息架构，也可以接入你部署后的 FastAPI API。
+          </p>
+        </div>
+        <div class="hero-actions">
+          <input id="apiBase" placeholder="可选：输入后端 API Base，例如 https://your-api.example.com" />
+          <button id="saveApiBase" class="btn btn-primary">连接 API</button>
+        </div>
+      </section>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="layout">
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="tag">Suites</p>
+              <h2>测试套件</h2>
+            </div>
+          </div>
+          <form id="suiteForm" class="stack">
+            <input name="name" placeholder="套件名称" required />
+            <input name="base_url" placeholder="Base URL" required />
+            <textarea name="description" rows="3" placeholder="描述"></textarea>
+            <button class="btn btn-primary" type="submit">新增套件</button>
+          </form>
+          <div id="suiteList" class="stack"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="tag">Cases</p>
+              <h2>测试用例</h2>
+            </div>
+          </div>
+          <form id="caseForm" class="stack">
+            <select name="suite_id" id="suiteSelect"></select>
+            <input name="name" placeholder="用例名称" required />
+            <div class="row">
+              <select name="method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+              </select>
+              <input name="path" placeholder="/path" required />
+            </div>
+            <input name="expected_status" type="number" value="200" />
+            <textarea name="assertions" rows="3" placeholder='JSON 断言，例如 [{"path":"status","operator":"eq","expected":"ok"}]'></textarea>
+            <button class="btn btn-primary" type="submit">新增用例</button>
+          </form>
+          <div id="caseList" class="stack"></div>
+        </article>
+      </section>
+
+      <section class="layout">
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="tag">Runs</p>
+              <h2>执行记录</h2>
+            </div>
+          </div>
+          <div id="runList" class="stack"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="tag">Deploy</p>
+              <h2>发布方式</h2>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="note">
+              <strong>GitHub Pages</strong>
+              <p>当前静态站通过 `main` 分支变更自动发布。</p>
+            </div>
+            <div class="note">
+              <strong>云端运行版</strong>
+              <p>仓库已包含 Docker、Render、Railway 配置，可直接接入托管平台。</p>
+            </div>
+            <div class="note">
+              <strong>镜像发布</strong>
+              <p>推送到 `main` 后会自动构建并发布 `ghcr.io/xuzhidong-netizen/autotest-platform` 镜像。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="./assets/app.js"></script>
+  </body>
+</html>
