@@ -1,7 +1,11 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.execution.web_runner import DEFAULT_FINANCE_PATHS
+from app.tool_catalog import ALL_WEB_TEST_KINDS
 
 
 class JsonAssertion(BaseModel):
@@ -156,5 +160,124 @@ class DashboardSummary(BaseModel):
     cases: int
     runs: int
     schedules: int
+    web_projects: int = 0
+    web_runs: int = 0
     pass_rate: float
     recent_runs: list[RunSummary]
+
+
+class ToolCatalogEntry(BaseModel):
+    key: str
+    category_label: str
+    tool_name: str
+    summary: str
+    docs_url: str
+    install_hint: str
+    installed: bool
+
+
+class WebTestProjectCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str | None = None
+    target_url: str = Field(min_length=4, max_length=500)
+    workspace_path: str | None = Field(default=None, max_length=500)
+    finance_paths: dict[str, str] = Field(default_factory=lambda: DEFAULT_FINANCE_PATHS.copy())
+    selector_assertions: dict[str, list[str]] = Field(default_factory=dict)
+    enabled_categories: list[str] = Field(default_factory=lambda: list(ALL_WEB_TEST_KINDS))
+    unit_command: str | None = None
+    integration_command: str | None = None
+    functional_command: str | None = None
+    stability_command: str | None = None
+    security_command: str | None = None
+    virtual_users: int = 20
+    spawn_rate: int = 4
+    duration: str = "2m"
+
+    @field_validator("finance_paths")
+    @classmethod
+    def validate_finance_paths(cls, value: dict[str, str]) -> dict[str, str]:
+        for path in value.values():
+            if not path.startswith("/"):
+                raise ValueError("finance_paths values must start with /")
+        return value
+
+    @field_validator("enabled_categories")
+    @classmethod
+    def validate_categories(cls, value: list[str]) -> list[str]:
+        invalid = [item for item in value if item not in ALL_WEB_TEST_KINDS]
+        if invalid:
+            raise ValueError(f"Unsupported categories: {', '.join(invalid)}")
+        return value
+
+    @field_validator("virtual_users", "spawn_rate")
+    @classmethod
+    def validate_positive_numbers(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("value must be positive")
+        return value
+
+
+class WebTestProjectRead(WebTestProjectCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    scaffold_path: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WebTestRunRequest(BaseModel):
+    categories: list[str] = Field(default_factory=list)
+
+    @field_validator("categories")
+    @classmethod
+    def validate_categories(cls, value: list[str]) -> list[str]:
+        invalid = [item for item in value if item not in ALL_WEB_TEST_KINDS]
+        if invalid:
+            raise ValueError(f"Unsupported categories: {', '.join(invalid)}")
+        return value
+
+
+class WebTestCategoryRunRead(BaseModel):
+    id: int
+    run_id: int
+    category: str
+    tool_name: str
+    status: str
+    command: str
+    exit_code: int | None = None
+    duration_ms: int | None = None
+    output_excerpt: str | None = None
+    report: dict[str, Any] = Field(default_factory=dict)
+    executed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WebTestRunSummary(BaseModel):
+    id: int
+    project_id: int
+    status: str
+    triggered_by: str
+    total_categories: int
+    passed_categories: int
+    failed_categories: int
+    summary: str | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WebTestRunRead(WebTestRunSummary):
+    category_runs: list[WebTestCategoryRunRead] = Field(default_factory=list)
+
+
+class WebTestProjectDetail(WebTestProjectRead):
+    recent_runs: list[WebTestRunSummary] = Field(default_factory=list)
+
+
+class WebScaffoldRead(BaseModel):
+    project_id: int
+    scaffold_path: str
+    files: list[str]

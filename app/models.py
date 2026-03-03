@@ -112,3 +112,72 @@ class Schedule(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     suite: Mapped["Suite"] = relationship(back_populates="schedules")
+
+
+class WebTestProject(Base):
+    __tablename__ = "web_test_projects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    workspace_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    finance_paths: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    selector_assertions: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    enabled_categories: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    unit_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    integration_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    functional_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stability_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    security_command: Mapped[str | None] = mapped_column(Text, nullable=True)
+    virtual_users: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    spawn_rate: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
+    duration: Mapped[str] = mapped_column(String(40), default="2m", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    runs: Mapped[list["WebTestRun"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="WebTestRun.started_at.desc()",
+    )
+
+
+class WebTestRun(Base):
+    __tablename__ = "web_test_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("web_test_projects.id"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
+    triggered_by: Mapped[str] = mapped_column(String(120), nullable=False, default="manual")
+    total_categories: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    passed_categories: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_categories: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped["WebTestProject"] = relationship(back_populates="runs")
+    category_runs: Mapped[list["WebTestCategoryRun"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="WebTestCategoryRun.id",
+    )
+
+
+class WebTestCategoryRun(Base):
+    __tablename__ = "web_test_category_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("web_test_runs.id"), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    tool_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    command: Mapped[str] = mapped_column(Text, nullable=False)
+    exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    report: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    run: Mapped["WebTestRun"] = relationship(back_populates="category_runs")

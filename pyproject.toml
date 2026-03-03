@@ -21,10 +21,15 @@ dependencies = [
 dev = [
   "pytest>=8.3.0,<9.0.0",
 ]
+webtest = [
+  "locust>=2.32.8,<3.0.0",
+  "playwright>=1.55.0,<2.0.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+norecursedirs = [".generated-tests", "generated"]
 
 [tool.setuptools]
 packages = ["app", "app.execution"]

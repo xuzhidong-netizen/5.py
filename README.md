@@ -13,6 +13,7 @@
 - GitHub Pages 静态演示版
 - GHCR 镜像自动发布
 - Render / Railway 云端部署配置
+- Web 金融页面自动化测试矩阵
 
 ## 技术栈
 
@@ -20,6 +21,7 @@
 - 存储：SQLite + SQLAlchemy
 - 调度：APScheduler
 - 前端：内置静态控制台（HTML/CSS/Vanilla JS）
+- Web 测试工具编排：pytest / Playwright / Locust / OWASP ZAP
 
 ## 启动
 
@@ -130,6 +132,59 @@ JSON 断言格式示例：
 - 耗时
 - 失败原因
 
+### 5. Web 金融页面自动化测试
+
+平台新增了面向金融 Web 页面的多类型测试编排能力，支持：
+
+- 单元测试
+- 集成测试
+- 功能测试
+- 稳定性测试
+- 安全测试
+
+你可以在平台中创建 `Web 测试项目`，配置：
+
+- 目标地址
+- 本地代码目录
+- 金融关键路径，例如登录、行情、持仓、交易、转账、对账单
+- 页面断言选择器
+- 稳定性压测参数
+- 各类测试的命令覆盖
+
+平台会自动生成测试脚手架到 `generated/web_finance/<project-id>-<slug>/`，并通过常规工具执行。
+
+### 6. 常规测试工具集成
+
+本项目集成了以下官方常规工具：
+
+- `pytest`
+  - 用途：单元测试、集成测试
+  - 文档：[pytest markers](https://docs.pytest.org/en/stable/how-to/mark.html)
+- `Playwright`
+  - 用途：功能测试、真实浏览器页面验证
+  - 文档：[Playwright Python](https://playwright.dev/python/docs/intro)
+- `Locust`
+  - 用途：稳定性测试、并发访问压测
+  - 文档：[Locust headless mode](https://docs.locust.io/en/latest/running-without-web-ui.html)
+- `OWASP ZAP Baseline`
+  - 用途：安全测试、基线安全扫描
+  - 文档：[ZAP baseline scan](https://www.zaproxy.org/docs/docker/baseline-scan/)
+
+这是基于官方文档做的工程选型，用于覆盖金融 Web 常见测试矩阵。
+
+### 7. 安装 Web 测试依赖
+
+```bash
+pip install -e '.[dev,webtest]'
+python -m playwright install chromium
+```
+
+如果需要安全扫描，请确保本机已安装 Docker：
+
+```bash
+docker pull ghcr.io/zaproxy/zaproxy:stable
+```
+
 ## API 概览
 
 - `GET /api/dashboard`
@@ -144,6 +199,14 @@ JSON 断言格式示例：
 - `GET /api/schedules`
 - `POST /api/schedules`
 - `PUT /api/schedules/{schedule_id}`
+- `GET /api/tool-catalog`
+- `GET /api/web-projects`
+- `POST /api/web-projects`
+- `GET /api/web-projects/{project_id}`
+- `POST /api/web-projects/{project_id}/scaffold`
+- `POST /api/web-runs/project/{project_id}`
+- `GET /api/web-runs`
+- `GET /api/web-runs/{run_id}`
 
 ## 默认演示数据
 

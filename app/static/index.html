@@ -112,6 +112,70 @@
         </article>
       </section>
 
+      <section class="grid">
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Web Finance</p>
+              <h2>金融 Web 测试项目</h2>
+            </div>
+          </div>
+          <form id="webProjectForm" class="stack">
+            <input name="name" placeholder="项目名称，例如 互联网银行门户" required />
+            <input name="target_url" placeholder="目标地址，例如 https://bank.example.com" required />
+            <input name="workspace_path" placeholder="代码目录（可选，用于单元/集成测试）" />
+            <textarea
+              name="finance_paths"
+              rows="5"
+              placeholder='金融页面路径 JSON，例如 {"login":"/login","quotes":"/quotes","portfolio":"/portfolio","trade":"/trade","transfer":"/transfer"}'
+            ></textarea>
+            <textarea
+              name="selector_assertions"
+              rows="4"
+              placeholder='功能断言 JSON，例如 {"login":["form"],"portfolio":["table.positions"]}'
+            ></textarea>
+            <div class="row three">
+              <input name="virtual_users" type="number" min="1" value="20" placeholder="虚拟用户" />
+              <input name="spawn_rate" type="number" min="1" value="4" placeholder="爬升速率" />
+              <input name="duration" value="2m" placeholder="压测时长，例如 2m" />
+            </div>
+            <button class="button primary" type="submit">创建 Web 测试项目</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Toolchain</p>
+              <h2>测试工具目录</h2>
+            </div>
+          </div>
+          <div id="toolCatalog" class="list"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Projects</p>
+              <h2>Web 测试项目列表</h2>
+            </div>
+          </div>
+          <div id="webProjectList" class="list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Web Runs</p>
+              <h2>Web 测试执行记录</h2>
+            </div>
+          </div>
+          <div id="webRunList" class="list"></div>
+        </article>
+      </section>
+
       <section class="panel">
         <div class="section-head">
           <div>
@@ -120,6 +184,16 @@
           </div>
         </div>
         <pre id="runDetail" class="code-block">点击执行记录后查看详情</pre>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Web Run Detail</p>
+            <h2>Web 测试详情</h2>
+          </div>
+        </div>
+        <pre id="webRunDetail" class="code-block">点击 Web 执行记录后查看详情</pre>
       </section>
     </main>
     <script type="module" src="/assets/app.js"></script>

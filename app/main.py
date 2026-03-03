@@ -11,7 +11,8 @@ from sqlalchemy.orm import selectinload
 from app.config import get_settings
 from app.database import init_db, session_scope
 from app.execution.http_runner import execute_suite_run
-from app.models import CaseRun, Run, Schedule, Suite, TestCase
+from app.execution.web_runner import LocalCommandRunner
+from app.models import CaseRun, Run, Schedule, Suite, TestCase, WebTestProject, WebTestRun
 from app.schemas import (
     CaseCreate,
     CaseRead,
@@ -26,6 +27,7 @@ from app.schemas import (
     SuiteRead,
 )
 from app.scheduler import schedule_manager
+from app.web_quality import router as web_quality_router
 
 
 def seed_demo_data() -> None:
@@ -65,6 +67,7 @@ def seed_demo_data() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    get_settings().generated_root.mkdir(parents=True, exist_ok=True)
     seed_demo_data()
     with session_scope() as session:
         schedule_manager.start()
@@ -74,6 +77,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="自动化测试平台", version="0.1.0", lifespan=lifespan)
+app.state.web_command_runner = LocalCommandRunner()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -82,6 +86,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/assets", StaticFiles(directory=str(get_settings().static_dir)), name="assets")
+app.include_router(web_quality_router)
 
 
 @app.get("/", include_in_schema=False)
@@ -101,6 +106,8 @@ def dashboard() -> DashboardSummary:
         case_count = session.query(func.count(TestCase.id)).scalar() or 0
         run_count = session.query(func.count(Run.id)).scalar() or 0
         schedule_count = session.query(func.count(Schedule.id)).scalar() or 0
+        web_project_count = session.query(func.count(WebTestProject.id)).scalar() or 0
+        web_run_count = session.query(func.count(WebTestRun.id)).scalar() or 0
         passed_total = session.query(func.coalesce(func.sum(Run.passed_cases), 0)).scalar() or 0
         total_cases = session.query(func.coalesce(func.sum(Run.total_cases), 0)).scalar() or 0
         recent_runs = (
@@ -114,6 +121,8 @@ def dashboard() -> DashboardSummary:
             cases=case_count,
             runs=run_count,
             schedules=schedule_count,
+            web_projects=web_project_count,
+            web_runs=web_run_count,
             pass_rate=round((passed_total / total_cases) * 100, 2) if total_cases else 0.0,
             recent_runs=[RunSummary.model_validate(run) for run in recent_runs],
         )

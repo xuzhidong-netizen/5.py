@@ -4,16 +4,22 @@ const caseListEl = document.querySelector("#caseList");
 const runListEl = document.querySelector("#runList");
 const scheduleListEl = document.querySelector("#scheduleList");
 const runDetailEl = document.querySelector("#runDetail");
+const webRunDetailEl = document.querySelector("#webRunDetail");
 const suiteForm = document.querySelector("#suiteForm");
 const caseForm = document.querySelector("#caseForm");
 const scheduleForm = document.querySelector("#scheduleForm");
+const webProjectForm = document.querySelector("#webProjectForm");
 const caseSuiteSelect = document.querySelector("#caseSuiteSelect");
 const scheduleSuiteSelect = document.querySelector("#scheduleSuiteSelect");
 const triggerTypeSelect = document.querySelector("#triggerTypeSelect");
 const intervalInput = document.querySelector("#intervalInput");
 const cronInput = document.querySelector("#cronInput");
+const toolCatalogEl = document.querySelector("#toolCatalog");
+const webProjectListEl = document.querySelector("#webProjectList");
+const webRunListEl = document.querySelector("#webRunList");
 
 let suites = [];
+let webProjects = [];
 let selectedSuiteId = null;
 
 async function api(path, options = {}) {
@@ -55,6 +61,8 @@ function renderMetrics(data) {
     ["测试用例", data.cases],
     ["执行记录", data.runs],
     ["调度任务", data.schedules],
+    ["Web 项目", data.web_projects],
+    ["Web 执行", data.web_runs],
     ["通过率", `${data.pass_rate}%`],
   ];
   metricsEl.innerHTML = items
@@ -63,6 +71,31 @@ function renderMetrics(data) {
         <div class="metric-card">
           <span>${label}</span>
           <strong>${value}</strong>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderToolCatalog(tools) {
+  toolCatalogEl.innerHTML = tools
+    .map(
+      (tool) => `
+        <div class="item">
+          <div class="item-head">
+            <div>
+              <h3>${tool.category_label}</h3>
+              <p>${tool.summary}</p>
+            </div>
+            <span class="badge ${tool.installed ? "success" : "failed"}">${tool.installed ? "installed" : "missing"}</span>
+          </div>
+          <div class="meta">
+            <span>工具：${tool.tool_name}</span>
+            <span>安装：${tool.install_hint}</span>
+          </div>
+          <div class="actions">
+            <a class="button secondary link-button" href="${tool.docs_url}" target="_blank" rel="noreferrer">官方文档</a>
+          </div>
         </div>
       `
     )
@@ -186,6 +219,73 @@ function renderSchedules(schedules) {
     .join("");
 }
 
+function renderWebProjects() {
+  if (!webProjects.length) {
+    webProjectListEl.innerHTML = `<div class="item"><p>暂无 Web 金融测试项目。</p></div>`;
+    return;
+  }
+  webProjectListEl.innerHTML = webProjects
+    .map(
+      (project) => `
+        <div class="item">
+          <div class="item-head">
+            <div>
+              <h3>${project.name}</h3>
+              <p>${project.description || "金融 Web 多类型测试编排项目"}</p>
+            </div>
+            <span class="badge running">${project.enabled_categories.length} 类</span>
+          </div>
+          <div class="meta">
+            <span>目标：${project.target_url}</span>
+            <span>代码目录：${project.workspace_path || "未配置"}</span>
+            <span>路径数：${Object.keys(project.finance_paths || {}).length}</span>
+            <span>脚手架：${project.scaffold_path}</span>
+          </div>
+          <div class="actions actions-wrap">
+            <button class="button secondary" data-action="scaffold-web" data-project-id="${project.id}">生成脚手架</button>
+            <button class="button primary" data-action="run-web-all" data-project-id="${project.id}">全量执行</button>
+            <button class="button secondary" data-action="run-web-kind" data-kind="unit" data-project-id="${project.id}">单元</button>
+            <button class="button secondary" data-action="run-web-kind" data-kind="integration" data-project-id="${project.id}">集成</button>
+            <button class="button secondary" data-action="run-web-kind" data-kind="functional" data-project-id="${project.id}">功能</button>
+            <button class="button secondary" data-action="run-web-kind" data-kind="stability" data-project-id="${project.id}">稳定性</button>
+            <button class="button secondary" data-action="run-web-kind" data-kind="security" data-project-id="${project.id}">安全</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderWebRuns(runs) {
+  if (!runs.length) {
+    webRunListEl.innerHTML = `<div class="item"><p>暂无 Web 测试执行记录。</p></div>`;
+    return;
+  }
+  webRunListEl.innerHTML = runs
+    .map(
+      (run) => `
+        <div class="item">
+          <div class="item-head">
+            <div>
+              <h3>Web Run #${run.id}</h3>
+              <p>${run.summary || "等待执行"}</p>
+            </div>
+            <span class="badge ${run.status}">${run.status}</span>
+          </div>
+          <div class="meta">
+            <span>项目：${run.project_id}</span>
+            <span>通过：${run.passed_categories}/${run.total_categories}</span>
+            <span>触发方式：${run.triggered_by}</span>
+          </div>
+          <div class="actions">
+            <button class="button secondary" data-action="view-web-run" data-run-id="${run.id}">查看详情</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
 async function loadDashboard() {
   const data = await api("/api/dashboard");
   renderMetrics(data);
@@ -218,9 +318,32 @@ async function loadSchedules() {
   renderSchedules(schedules);
 }
 
+async function loadToolCatalog() {
+  const tools = await api("/api/tool-catalog");
+  renderToolCatalog(tools);
+}
+
+async function loadWebProjects() {
+  webProjects = await api("/api/web-projects");
+  renderWebProjects();
+}
+
+async function loadWebRuns() {
+  const runs = await api("/api/web-runs");
+  renderWebRuns(runs);
+}
+
 async function refreshAll() {
   await loadSuites();
-  await Promise.all([loadDashboard(), loadSuiteDetail(), loadRuns(), loadSchedules()]);
+  await Promise.all([
+    loadDashboard(),
+    loadSuiteDetail(),
+    loadRuns(),
+    loadSchedules(),
+    loadToolCatalog(),
+    loadWebProjects(),
+    loadWebRuns(),
+  ]);
 }
 
 suiteForm.addEventListener("submit", async (event) => {
@@ -287,6 +410,36 @@ scheduleForm.addEventListener("submit", async (event) => {
   await refreshAll();
 });
 
+webProjectForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(webProjectForm);
+  const payload = {
+    name: formData.get("name"),
+    description: "",
+    target_url: formData.get("target_url"),
+    workspace_path: formData.get("workspace_path") || null,
+    finance_paths: parseMaybeJson(formData.get("finance_paths")) || {
+      login: "/login",
+      quotes: "/quotes",
+      portfolio: "/portfolio",
+      trade: "/trade",
+      transfer: "/transfer",
+      statements: "/statements",
+    },
+    selector_assertions: parseMaybeJson(formData.get("selector_assertions")) || {},
+    enabled_categories: ["unit", "integration", "functional", "stability", "security"],
+    virtual_users: Number(formData.get("virtual_users") || 20),
+    spawn_rate: Number(formData.get("spawn_rate") || 4),
+    duration: formData.get("duration") || "2m",
+  };
+  await api("/api/web-projects", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  webProjectForm.reset();
+  await refreshAll();
+});
+
 document.querySelector("#refreshDashboard").addEventListener("click", refreshAll);
 
 triggerTypeSelect.addEventListener("change", () => {
@@ -325,6 +478,51 @@ runListEl.addEventListener("click", async (event) => {
   runDetailEl.textContent = JSON.stringify(data, null, 2);
 });
 
+webProjectListEl.addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button) {
+    return;
+  }
+
+  const projectId = Number(button.dataset.projectId);
+  if (button.dataset.action === "scaffold-web") {
+    const data = await api(`/api/web-projects/${projectId}/scaffold`, { method: "POST" });
+    webRunDetailEl.textContent = JSON.stringify(data, null, 2);
+    await refreshAll();
+    return;
+  }
+
+  if (button.dataset.action === "run-web-all") {
+    await api(`/api/web-runs/project/${projectId}`, {
+      method: "POST",
+      body: JSON.stringify({ categories: [] }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await refreshAll();
+    return;
+  }
+
+  if (button.dataset.action === "run-web-kind") {
+    await api(`/api/web-runs/project/${projectId}`, {
+      method: "POST",
+      body: JSON.stringify({ categories: [button.dataset.kind] }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await refreshAll();
+  }
+});
+
+webRunListEl.addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button || button.dataset.action !== "view-web-run") {
+    return;
+  }
+  const runId = Number(button.dataset.runId);
+  const data = await api(`/api/web-runs/${runId}`);
+  webRunDetailEl.textContent = JSON.stringify(data, null, 2);
+});
+
 refreshAll().catch((error) => {
   runDetailEl.textContent = error.message;
+  webRunDetailEl.textContent = error.message;
 });
