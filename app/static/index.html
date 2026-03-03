@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自动化测试平台</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <main class="shell">
+      <section class="hero panel">
+        <div>
+          <p class="eyebrow">Automation Control Center</p>
+          <h1>自动化测试平台</h1>
+          <p class="hero-copy">
+            统一管理接口自动化测试、定时任务、执行历史与断言报告。
+          </p>
+        </div>
+        <button id="refreshDashboard" class="button primary">刷新概览</button>
+      </section>
+
+      <section class="metrics" id="metrics"></section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Suites</p>
+              <h2>测试套件</h2>
+            </div>
+          </div>
+          <form id="suiteForm" class="stack">
+            <input name="name" placeholder="套件名称" required />
+            <input name="base_url" placeholder="Base URL，例如 https://api.example.com" required />
+            <textarea name="description" rows="3" placeholder="套件描述"></textarea>
+            <button class="button primary" type="submit">创建套件</button>
+          </form>
+          <div id="suiteList" class="list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Cases</p>
+              <h2>测试用例</h2>
+            </div>
+          </div>
+          <form id="caseForm" class="stack">
+            <select name="suite_id" id="caseSuiteSelect" required></select>
+            <input name="name" placeholder="用例名称" required />
+            <div class="row">
+              <select name="method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+              </select>
+              <input name="path" placeholder="/path" required />
+            </div>
+            <textarea name="headers" rows="3" placeholder='Headers JSON，例如 {"Authorization": "Bearer token"}'></textarea>
+            <textarea name="query_params" rows="3" placeholder='Query JSON，例如 {"page": 1}'></textarea>
+            <textarea name="body" rows="3" placeholder='Body JSON 或纯文本'></textarea>
+            <div class="row">
+              <input name="expected_status" type="number" value="200" placeholder="状态码" />
+              <input name="max_response_time_ms" type="number" placeholder="最大耗时(ms)" />
+            </div>
+            <input name="expected_body_contains" placeholder="响应需包含文本（可选）" />
+            <textarea
+              name="expected_json_assertions"
+              rows="4"
+              placeholder='JSON 断言列表，例如 [{"path":"0.id","operator":"eq","expected":1}]'
+            ></textarea>
+            <button class="button primary" type="submit">创建用例</button>
+          </form>
+          <div id="caseList" class="list"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Runs</p>
+              <h2>执行历史</h2>
+            </div>
+          </div>
+          <div id="runList" class="list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Schedules</p>
+              <h2>定时调度</h2>
+            </div>
+          </div>
+          <form id="scheduleForm" class="stack">
+            <select name="suite_id" id="scheduleSuiteSelect" required></select>
+            <input name="name" placeholder="调度名称" required />
+            <select name="trigger_type" id="triggerTypeSelect">
+              <option value="interval">按分钟间隔</option>
+              <option value="cron">Cron 表达式</option>
+            </select>
+            <input name="interval_minutes" id="intervalInput" type="number" min="1" placeholder="间隔分钟数" />
+            <input name="cron_expression" id="cronInput" placeholder="Cron，例如 */10 * * * *" disabled />
+            <button class="button primary" type="submit">创建调度</button>
+          </form>
+          <div id="scheduleList" class="list"></div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Run Detail</p>
+            <h2>执行详情</h2>
+          </div>
+        </div>
+        <pre id="runDetail" class="code-block">点击执行记录后查看详情</pre>
+      </section>
+    </main>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>
