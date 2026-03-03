@@ -18,6 +18,29 @@ const toolCatalogEl = document.querySelector("#toolCatalog");
 const webProjectListEl = document.querySelector("#webProjectList");
 const webRunListEl = document.querySelector("#webRunList");
 
+const DEFAULT_WEB_PROJECT_FORM_VALUES = {
+  target_url: "https://bank.example.com",
+  finance_paths: {
+    login: "/login",
+    quotes: "/quotes",
+    portfolio: "/portfolio",
+    trade: "/trade",
+    transfer: "/transfer",
+    statements: "/statements",
+  },
+  selector_assertions: {
+    login: ["form", "input[name='username']", "input[type='password']"],
+    quotes: ["main", "[data-page='quotes'], .quotes-table, table"],
+    portfolio: ["main", "[data-page='portfolio'], .positions-table, table"],
+    trade: ["main", "form", "button[type='submit']"],
+    transfer: ["main", "form", "button[type='submit']"],
+    statements: ["main", "[data-page='statements'], .statement-list, table"],
+  },
+  virtual_users: 20,
+  spawn_rate: 4,
+  duration: "2m",
+};
+
 let suites = [];
 let webProjects = [];
 let selectedSuiteId = null;
@@ -53,6 +76,23 @@ function parseMaybeJson(value) {
   } catch {
     return value;
   }
+}
+
+function applyWebProjectDefaults() {
+  webProjectForm.elements.target_url.value = DEFAULT_WEB_PROJECT_FORM_VALUES.target_url;
+  webProjectForm.elements.finance_paths.value = JSON.stringify(
+    DEFAULT_WEB_PROJECT_FORM_VALUES.finance_paths,
+    null,
+    2
+  );
+  webProjectForm.elements.selector_assertions.value = JSON.stringify(
+    DEFAULT_WEB_PROJECT_FORM_VALUES.selector_assertions,
+    null,
+    2
+  );
+  webProjectForm.elements.virtual_users.value = DEFAULT_WEB_PROJECT_FORM_VALUES.virtual_users;
+  webProjectForm.elements.spawn_rate.value = DEFAULT_WEB_PROJECT_FORM_VALUES.spawn_rate;
+  webProjectForm.elements.duration.value = DEFAULT_WEB_PROJECT_FORM_VALUES.duration;
 }
 
 function renderMetrics(data) {
@@ -437,6 +477,7 @@ webProjectForm.addEventListener("submit", async (event) => {
     body: JSON.stringify(payload),
   });
   webProjectForm.reset();
+  applyWebProjectDefaults();
   await refreshAll();
 });
 
@@ -526,3 +567,5 @@ refreshAll().catch((error) => {
   runDetailEl.textContent = error.message;
   webRunDetailEl.textContent = error.message;
 });
+
+applyWebProjectDefaults();

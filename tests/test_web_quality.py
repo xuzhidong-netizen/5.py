@@ -8,6 +8,7 @@ from app.execution.web_runner import (
     execute_web_test_run,
     project_scaffold_dir,
 )
+from app.main import DEMO_WEB_PROJECT_NAME, seed_demo_web_project
 from app.models import WebTestProject, WebTestRun
 
 
@@ -139,3 +140,22 @@ def test_default_unit_and_integration_commands_target_scaffold_directories():
     integration_command = default_command_for(project, "integration")
     assert "/tests/unit" in unit_command
     assert "/tests/integration" in integration_command
+
+
+def test_seed_demo_web_project_creates_preconfigured_finance_project():
+    with SessionLocal() as session:
+        seed_demo_web_project(session)
+        session.commit()
+
+        project = session.query(WebTestProject).filter(WebTestProject.name == DEMO_WEB_PROJECT_NAME).first()
+        assert project is not None
+        assert project.finance_paths == {
+            "login": "/login",
+            "quotes": "/quotes",
+            "portfolio": "/portfolio",
+            "trade": "/trade",
+            "transfer": "/transfer",
+            "statements": "/statements",
+        }
+        assert set(project.selector_assertions) == set(project.finance_paths)
+        assert (project_scaffold_dir(project) / "tests" / "functional" / "test_finance_flows.py").exists()

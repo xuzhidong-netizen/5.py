@@ -142,6 +142,13 @@ body {
   gap: 12px;
 }
 
+.helper-text {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .row {
   display: grid;
   grid-template-columns: 120px 1fr;

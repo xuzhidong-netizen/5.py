@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.config import get_settings
 from app.database import init_db, session_scope
 from app.execution.http_runner import execute_suite_run
-from app.execution.web_runner import LocalCommandRunner
+from app.execution.web_runner import DEFAULT_FINANCE_PATHS, LocalCommandRunner, ensure_web_project_scaffold
 from app.models import CaseRun, Run, Schedule, Suite, TestCase, WebTestProject, WebTestRun
 from app.schemas import (
     CaseCreate,
@@ -30,38 +30,77 @@ from app.scheduler import schedule_manager
 from app.web_quality import router as web_quality_router
 
 
+DEMO_WEB_PROJECT_NAME = "金融站点示例项目"
+DEMO_WEB_TARGET_URL = "https://bank.example.com"
+DEMO_WEB_SELECTOR_ASSERTIONS = {
+    "login": ["form", "input[name='username']", "input[type='password']"],
+    "quotes": ["main", "[data-page='quotes'], .quotes-table, table"],
+    "portfolio": ["main", "[data-page='portfolio'], .positions-table, table"],
+    "trade": ["main", "form", "button[type='submit']"],
+    "transfer": ["main", "form", "button[type='submit']"],
+    "statements": ["main", "[data-page='statements'], .statement-list, table"],
+}
+
+
+def seed_demo_suite(session) -> None:
+    exists = session.query(Suite.id).first()
+    if exists:
+        return
+
+    suite = Suite(
+        name="平台自检",
+        description="默认演示套件，验证平台自身健康检查接口。",
+        base_url="http://127.0.0.1:8000",
+    )
+    session.add(suite)
+    session.flush()
+
+    session.add(
+        TestCase(
+            suite_id=suite.id,
+            name="健康检查接口",
+            description="验证平台运行状态。",
+            method="GET",
+            path="/health",
+            expected_status=200,
+            max_response_time_ms=3000,
+            expected_json_assertions=[
+                {"path": "status", "operator": "eq", "expected": "ok"},
+            ],
+        )
+    )
+
+
+def seed_demo_web_project(session) -> None:
+    exists = session.query(WebTestProject.id).first()
+    if exists:
+        return
+
+    project = WebTestProject(
+        name=DEMO_WEB_PROJECT_NAME,
+        description="默认金融站点示例项目，已预置登录、行情、持仓、交易、转账、账单关键路径。",
+        target_url=DEMO_WEB_TARGET_URL,
+        workspace_path=None,
+        finance_paths=DEFAULT_FINANCE_PATHS.copy(),
+        selector_assertions=DEMO_WEB_SELECTOR_ASSERTIONS,
+        enabled_categories=["unit", "integration", "functional", "stability", "security"],
+        virtual_users=20,
+        spawn_rate=4,
+        duration="2m",
+    )
+    session.add(project)
+    session.flush()
+    ensure_web_project_scaffold(project)
+
+
 def seed_demo_data() -> None:
     settings = get_settings()
     if not settings.auto_seed_demo:
         return
 
     with session_scope() as session:
-        exists = session.query(Suite.id).first()
-        if exists:
-            return
-
-        suite = Suite(
-            name="平台自检",
-            description="默认演示套件，验证平台自身健康检查接口。",
-            base_url="http://127.0.0.1:8000",
-        )
-        session.add(suite)
-        session.flush()
-
-        session.add(
-            TestCase(
-                suite_id=suite.id,
-                name="健康检查接口",
-                description="验证平台运行状态。",
-                method="GET",
-                path="/health",
-                expected_status=200,
-                max_response_time_ms=3000,
-                expected_json_assertions=[
-                    {"path": "status", "operator": "eq", "expected": "ok"},
-                ],
-            )
-        )
+        seed_demo_suite(session)
+        seed_demo_web_project(session)
 
 
 @asynccontextmanager

@@ -15,7 +15,7 @@
           <p class="eyebrow">Automation Control Center</p>
           <h1>自动化测试平台</h1>
           <p class="hero-copy">
-            统一管理接口自动化测试、定时任务、执行历史与断言报告。
+            统一管理接口自动化测试、定时任务、执行历史与断言报告，并内置一个已配好关键路径的金融站点示例项目。
           </p>
         </div>
         <button id="refreshDashboard" class="button primary">刷新概览</button>
@@ -124,10 +124,11 @@
             <input name="name" placeholder="项目名称，例如 互联网银行门户" required />
             <input name="target_url" placeholder="目标地址，例如 https://bank.example.com" required />
             <input name="workspace_path" placeholder="代码目录（可选，用于单元/集成测试）" />
+            <p class="helper-text">默认会预填登录、行情、持仓、交易、转账、账单路径和常用页面断言。</p>
             <textarea
               name="finance_paths"
               rows="5"
-              placeholder='金融页面路径 JSON，例如 {"login":"/login","quotes":"/quotes","portfolio":"/portfolio","trade":"/trade","transfer":"/transfer"}'
+              placeholder='金融页面路径 JSON，例如 {"login":"/login","quotes":"/quotes","portfolio":"/portfolio","trade":"/trade","transfer":"/transfer","statements":"/statements"}'
             ></textarea>
             <textarea
               name="selector_assertions"

@@ -49,7 +49,7 @@ docker compose up --build
 仓库已内置三个工作流：
 
 - `CI`: 运行测试
-- `Pages`: 将 `docs/` 发布到 `5.py` 自己的 GitHub Pages
+- `Pages`: 将 `docs/` 发布到 `6.py` 自己的 GitHub Pages
 - `Docker Publish`: 将镜像发布到 `ghcr.io/xuzhidong-netizen/autotest-platform`
 
 ### GitHub Pages
@@ -210,7 +210,12 @@ docker pull ghcr.io/zaproxy/zaproxy:stable
 
 ## 默认演示数据
 
-首次启动时会自动写入一个“平台自检”演示套件，默认请求 `http://127.0.0.1:8000/health`。因此建议按默认 `8000` 端口启动。可以通过环境变量关闭：
+首次启动时会自动写入：
+
+- 一个“平台自检”演示套件，默认请求 `http://127.0.0.1:8000/health`
+- 一个“金融站点示例项目”，已预置登录、行情、持仓、交易、转账、账单路径
+
+因此建议按默认 `8000` 端口启动。可以通过环境变量关闭：
 
 ```bash
 AUTO_SEED_DEMO=false
