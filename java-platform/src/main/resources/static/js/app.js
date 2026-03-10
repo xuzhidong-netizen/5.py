@@ -250,7 +250,7 @@ function renderAiInterfaceCandidates(candidates) {
         <td>${item.status === 1 ? "已入库" : "未入库"}<br>${item.validationMessage || item.statusMessage || "-"}</td>
         <td>
             <div class="table-actions">
-                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳"}</button>
+                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳入库"}</button>
                 <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
                 <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>删除</button>
             </div>
@@ -698,8 +698,29 @@ aiInterfaceTableBody.addEventListener("click", async (event) => {
             aiPreCaseMessage.textContent = "已入库案例不需要再次采纳";
             return;
         }
-        candidate.selected = !candidate.selected;
-        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+        setButtonBusy(button, true, "入库中...");
+        try {
+            const result = await http("/api/ai/interface-cases/temp/store", {
+                method: "POST",
+                body: JSON.stringify({
+                    generationId: latestAiInterfaceGenerationId,
+                    tempIds: [tempId],
+                    autoExecute: false
+                })
+            });
+            const data = result.data || {};
+            latestAiInterfaceSaveItems = Array.isArray(data.items) ? data.items : [];
+            renderAiInterfaceSaveResults(latestAiInterfaceSaveItems);
+            renderAiInterfaceExecution(null);
+            await loadTempCases();
+            await loadExecutableCases();
+            await refreshAll();
+            aiPreCaseMessage.textContent = `${result.msg}，已采纳入库 tempId=${tempId}，可前往“用例执行”执行`;
+        } catch (error) {
+            aiPreCaseMessage.textContent = `采纳入库失败：${error.message}`;
+        } finally {
+            setButtonBusy(button, false);
+        }
         return;
     }
 
