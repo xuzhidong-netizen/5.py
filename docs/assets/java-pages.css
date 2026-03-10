@@ -236,7 +236,8 @@ pre.architecture {
 }
 
 #aiDocImportText,
-#aiCaseImportText {
+#aiCaseImportText,
+#aiInterfaceText {
   min-height: 180px;
 }
 
@@ -249,7 +250,8 @@ a {
   color: #2563eb;
 }
 
-#aiCaseTable input[type="checkbox"] {
+#aiCaseTable input[type="checkbox"],
+#aiInterfaceTable input[type="checkbox"] {
   width: 16px;
   height: 16px;
 }

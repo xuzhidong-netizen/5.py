@@ -27,6 +27,16 @@ const versionResult = document.getElementById("versionResult");
 const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
 
+const aiInterfaceFile = document.getElementById("aiInterfaceFile");
+const aiInterfaceText = document.getElementById("aiInterfaceText");
+const aiInterfaceGenerateBtn = document.getElementById("aiInterfaceGenerateBtn");
+const aiInterfaceSelectAllBtn = document.getElementById("aiInterfaceSelectAllBtn");
+const aiInterfaceSaveRunBtn = document.getElementById("aiInterfaceSaveRunBtn");
+const aiInterfaceTableBody = document.querySelector("#aiInterfaceTable tbody");
+const aiInterfaceMessage = document.getElementById("aiInterfaceMessage");
+const aiInterfaceOutput = document.getElementById("aiInterfaceOutput");
+const aiInterfaceSaveOutput = document.getElementById("aiInterfaceSaveOutput");
+
 const aiDocForm = document.getElementById("aiDocForm");
 const aiDocImportFile = document.getElementById("aiDocImportFile");
 const aiDocImportText = document.getElementById("aiDocImportText");
@@ -57,6 +67,9 @@ const aiResultOutput = document.getElementById("aiResultOutput");
 let latestGeneratedCases = [];
 let latestDocImportedFormat = "auto";
 let latestCaseImportedFormat = "auto";
+let latestAiInterfaceRows = [];
+let latestAiInterfaceGenerationId = "";
+let latestAiInterfaceCandidates = [];
 
 menu.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-panel]");
@@ -107,6 +120,107 @@ function detectDocFormatByFileName(fileName) {
         return "json";
     }
     return "auto";
+}
+
+function parseDelimitedRows(text, delimiter) {
+    const lines = String(text || "")
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    if (lines.length < 2) {
+        return [];
+    }
+    const headers = lines[0].split(delimiter).map((item) => item.trim());
+    if (headers.every((item) => !item)) {
+        return [];
+    }
+    const rows = [];
+    for (let i = 1; i < lines.length; i += 1) {
+        const values = lines[i].split(delimiter);
+        const row = {};
+        headers.forEach((header, index) => {
+            if (!header) {
+                return;
+            }
+            row[header] = String(values[index] ?? "").trim();
+        });
+        if (Object.keys(row).length > 0) {
+            rows.push(row);
+        }
+    }
+    return rows;
+}
+
+async function parseAiInterfaceFile(file) {
+    const name = String(file?.name || "").toLowerCase();
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        if (!window.XLSX || typeof window.XLSX.read !== "function") {
+            throw new Error("Excel解析器未加载，请刷新页面后重试");
+        }
+        const buffer = await file.arrayBuffer();
+        const workbook = window.XLSX.read(buffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+            return { rows: [], text: "" };
+        }
+        const sheet = workbook.Sheets[sheetName];
+        return {
+            rows: window.XLSX.utils.sheet_to_json(sheet, { defval: "" }),
+            text: ""
+        };
+    }
+
+    const text = await file.text();
+    if (name.endsWith(".csv")) {
+        return {
+            rows: parseDelimitedRows(text, text.includes("\t") ? "\t" : ","),
+            text
+        };
+    }
+    if (name.endsWith(".json")) {
+        try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) {
+                return {
+                    rows: parsed.filter((item) => item && typeof item === "object"),
+                    text
+                };
+            }
+            if (parsed && typeof parsed === "object") {
+                return {
+                    rows: [parsed],
+                    text
+                };
+            }
+        } catch (error) {
+            throw new Error(`JSON解析失败：${error.message}`);
+        }
+    }
+    return { rows: [], text };
+}
+
+function renderAiInterfaceCandidates(candidates) {
+    aiInterfaceTableBody.innerHTML = candidates.map((item) => `
+      <tr>
+        <td>
+            <input
+                type="checkbox"
+                class="ai-interface-checkbox"
+                value="${item.candidateId}"
+                ${item.valid === false ? "disabled" : "checked"}
+            >
+        </td>
+        <td>${item.source || "-"}</td>
+        <td>${item.sysId || "-"}</td>
+        <td>${item.funcNo || "-"}</td>
+        <td>${item.funcName || "-"}</td>
+        <td>${item.caseId ?? "-"}</td>
+        <td>${item.caseName || "-"}</td>
+        <td>${item.moduleName || "-"}</td>
+        <td>${item.valid === false ? "不可入库" : "可入库"}</td>
+        <td>${item.validationMessage || "-"}</td>
+      </tr>
+    `).join("");
 }
 
 async function http(path, options = {}) {
@@ -273,6 +387,98 @@ caseForm.addEventListener("submit", async (event) => {
         await refreshAll();
     } catch (error) {
         caseMessage.textContent = `案例新增失败：${error.message}`;
+    }
+});
+
+aiInterfaceFile.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+    try {
+        const parsed = await parseAiInterfaceFile(file);
+        latestAiInterfaceRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+        if (!String(aiInterfaceText.value || "").trim() && parsed.text) {
+            aiInterfaceText.value = parsed.text;
+        }
+        if (latestAiInterfaceRows.length > 0) {
+            aiInterfaceMessage.textContent = `已导入文件 ${file.name}，识别 ${latestAiInterfaceRows.length} 行数据`;
+        } else {
+            aiInterfaceMessage.textContent = `已导入文件 ${file.name}，未识别结构化表格，将仅使用文本输入`;
+        }
+    } catch (error) {
+        aiInterfaceMessage.textContent = `文件解析失败：${error.message}`;
+    }
+});
+
+aiInterfaceGenerateBtn.addEventListener("click", async () => {
+    const textInput = String(aiInterfaceText.value || "").trim();
+    if (latestAiInterfaceRows.length === 0 && !textInput) {
+        aiInterfaceMessage.textContent = "请先导入Excel/CSV或输入文本";
+        return;
+    }
+    try {
+        const result = await http("/api/ai/interface-cases/generate", {
+            method: "POST",
+            body: JSON.stringify({
+                textInput,
+                importRows: latestAiInterfaceRows
+            })
+        });
+        const data = result.data || {};
+        latestAiInterfaceGenerationId = data.generationId || "";
+        latestAiInterfaceCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+        aiInterfaceOutput.textContent = JSON.stringify(data, null, 2);
+        aiInterfaceMessage.textContent = `${result.msg}，候选 ${latestAiInterfaceCandidates.length} 条，AI引擎=${data.aiEngine || "N/A"}`;
+    } catch (error) {
+        aiInterfaceMessage.textContent = `生成失败：${error.message}`;
+    }
+});
+
+aiInterfaceSelectAllBtn.addEventListener("click", () => {
+    const checkboxes = Array.from(document.querySelectorAll(".ai-interface-checkbox:not([disabled])"));
+    if (checkboxes.length === 0) {
+        aiInterfaceMessage.textContent = "当前没有可选候选案例";
+        return;
+    }
+    const allChecked = checkboxes.every((item) => item.checked);
+    checkboxes.forEach((item) => {
+        item.checked = !allChecked;
+    });
+});
+
+aiInterfaceSaveRunBtn.addEventListener("click", async () => {
+    if (!latestAiInterfaceGenerationId) {
+        aiInterfaceMessage.textContent = "请先执行AI生成";
+        return;
+    }
+    const selectedIds = Array.from(document.querySelectorAll(".ai-interface-checkbox:checked"))
+        .map((item) => item.value)
+        .filter((item) => item);
+    if (selectedIds.length === 0) {
+        aiInterfaceMessage.textContent = "请至少勾选一个候选案例";
+        return;
+    }
+    try {
+        const result = await http("/api/ai/interface-cases/save", {
+            method: "POST",
+            body: JSON.stringify({
+                generationId: latestAiInterfaceGenerationId,
+                candidateIds: selectedIds,
+                autoExecute: true
+            })
+        });
+        const data = result.data || {};
+        aiInterfaceSaveOutput.textContent = JSON.stringify(data, null, 2);
+        const hisId = data.executionHisId ? `，已触发执行 hisId=${data.executionHisId}` : "";
+        aiInterfaceMessage.textContent = `${result.msg}，接口新增 ${data.functionCreatedCount || 0}，案例新增 ${data.caseCreatedCount || 0}${hisId}`;
+        if (data.execution) {
+            executionOutput.textContent = JSON.stringify(data.execution, null, 2);
+        }
+        await refreshAll();
+    } catch (error) {
+        aiInterfaceMessage.textContent = `入库执行失败：${error.message}`;
     }
 });
 
@@ -610,6 +816,8 @@ aiDocOpenApiOutput.textContent = "提交接口定义后自动生成 OpenAPI JSON
 aiCaseOutput.textContent = "生成后的测试用例会显示在这里";
 aiExecuteOutput.textContent = "请选择测试用例并执行";
 aiResultOutput.textContent = "执行后可在这里查看批次结果";
+aiInterfaceOutput.textContent = "请先导入Excel/CSV或输入文本，然后执行AI生成";
+aiInterfaceSaveOutput.textContent = "勾选候选案例后可确认入库并自动执行";
 
 loadAiResults().catch(() => {
     aiResultOutput.textContent = "暂无执行结果";

@@ -15,7 +15,8 @@
             <div class="menu-group">
                 <div class="menu-group-title">Ai测试</div>
                 <div class="menu-group-items">
-                    <button data-panel="aiDocs" class="active">接口文档生成</button>
+                    <button data-panel="aiInterfaceCases" class="active">AI生成接口案例</button>
+                    <button data-panel="aiDocs">接口文档生成</button>
                     <button data-panel="aiCases">测试用例生成</button>
                     <button data-panel="aiExecute">用例执行</button>
                     <button data-panel="aiResults">执行结果展示</button>
@@ -43,7 +44,52 @@
     </aside>
 
     <main class="content">
-        <section id="aiDocs" class="panel active">
+        <section id="aiInterfaceCases" class="panel active">
+            <h2>Ai测试 · AI生成接口案例</h2>
+            <div class="block">
+                <h3>文件导入与文本输入（放在最前）</h3>
+                <p>支持 Excel/CSV 导入和文本输入，AI 解析后生成可执行候选案例，再确认入库并自动执行。</p>
+                <div class="form-grid">
+                    <input id="aiInterfaceFile" type="file" accept=".xlsx,.xls,.csv,.json,.txt"/>
+                    <textarea id="aiInterfaceText" placeholder="支持粘贴JSON/CSV/Key:Value文本，字段包括sysId、sysName、funcNo、funcName、funcType、caseId、caseName、caseKvBase、moduleName等"></textarea>
+                    <button id="aiInterfaceGenerateBtn" type="button">AI解析并生成候选案例</button>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
+                <button id="aiInterfaceSaveRunBtn" type="button">确认入库并自动执行</button>
+            </div>
+            <table class="table" id="aiInterfaceTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>来源</th>
+                    <th>sysId</th>
+                    <th>funcNo</th>
+                    <th>funcName</th>
+                    <th>caseId</th>
+                    <th>caseName</th>
+                    <th>moduleName</th>
+                    <th>状态</th>
+                    <th>说明</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiInterfaceMessage" class="message"></div>
+            <div class="query-grid">
+                <div>
+                    <h3>AI生成结果</h3>
+                    <pre id="aiInterfaceOutput"></pre>
+                </div>
+                <div>
+                    <h3>入库执行结果</h3>
+                    <pre id="aiInterfaceSaveOutput"></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="aiDocs" class="panel">
             <h2>Ai测试 · 接口文档生成</h2>
             <div class="block">
                 <h3>接口文档导入生成（AI参与）</h3>
@@ -480,6 +526,7 @@ tail -f nohup.log</pre>
     </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
