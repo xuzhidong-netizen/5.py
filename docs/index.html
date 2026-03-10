@@ -65,27 +65,54 @@
           <th>选择</th>
           <th>来源</th>
           <th>sysId</th>
+          <th>sysName</th>
           <th>funcNo</th>
           <th>funcName</th>
+          <th>funcType</th>
           <th>caseId</th>
           <th>caseName</th>
           <th>moduleName</th>
           <th>状态</th>
-          <th>说明</th>
+          <th>操作</th>
         </tr>
         </thead>
         <tbody></tbody>
       </table>
       <div id="aiInterfaceMessage" class="message"></div>
-      <div class="query-grid">
-        <div>
-          <h3>AI生成结果</h3>
-          <pre id="aiInterfaceOutput"></pre>
-        </div>
-        <div>
-          <h3>入库执行结果</h3>
-          <pre id="aiInterfaceSaveOutput"></pre>
-        </div>
+      <div class="block">
+        <h3>入库结果</h3>
+        <table class="table" id="aiInterfaceSaveTable">
+          <thead>
+          <tr>
+            <th>candidateId</th>
+            <th>funcNo</th>
+            <th>caseId</th>
+            <th>caseName</th>
+            <th>接口新增</th>
+            <th>结果</th>
+            <th>说明</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="block">
+        <h3>自动执行结果</h3>
+        <table class="table" id="aiInterfaceExecutionTable">
+          <thead>
+          <tr>
+            <th>hisId</th>
+            <th>状态</th>
+            <th>模式</th>
+            <th>版本</th>
+            <th>总数</th>
+            <th>成功</th>
+            <th>失败</th>
+            <th>通过率</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </section>
 
