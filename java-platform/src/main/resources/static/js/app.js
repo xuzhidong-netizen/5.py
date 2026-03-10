@@ -73,6 +73,7 @@ const aiResultTableBody = document.querySelector("#aiResultTable tbody");
 const aiResultOutput = document.getElementById("aiResultOutput");
 
 let latestGeneratedCases = [];
+let latestExecutableCases = [];
 let latestDocImportedFormat = "auto";
 let latestCaseImportedFormat = "auto";
 let latestAiInterfaceRows = [];
@@ -92,6 +93,16 @@ function activatePanel(panelId) {
         item.classList.toggle("active", item.dataset.panel === panelId);
     });
     panels.forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
+    if (panelId === "aiExecute") {
+        loadExecutableCases().catch(() => {
+            aiExecuteMessage.textContent = "加载可执行用例失败";
+        });
+    }
+    if (panelId === "aiResults") {
+        loadAiResults().catch(() => {
+            aiResultOutput.textContent = "加载执行结果失败";
+        });
+    }
 }
 
 function formToJson(form) {
@@ -503,6 +514,13 @@ function renderAiCases(cases) {
     `).join("");
 }
 
+async function loadExecutableCases() {
+    const rows = await http("/api/execute-cases");
+    latestExecutableCases = Array.isArray(rows) ? rows : [];
+    renderAiCases(latestExecutableCases);
+    return latestExecutableCases;
+}
+
 function renderAiResults(batches) {
     aiRunTableBody.innerHTML = batches.map((item) => `
       <tr>
@@ -842,6 +860,7 @@ aiInterfaceSaveRunBtn.addEventListener("click", async () => {
         }
         await loadTempCases();
         await refreshAll();
+        await loadExecutableCases();
     } catch (error) {
         aiPreCaseMessage.textContent = `入库执行失败：${error.message}`;
     } finally {
@@ -1000,7 +1019,8 @@ aiCaseForm.addEventListener("submit", async (event) => {
         renderAiCases(result);
         aiCaseOutput.textContent = JSON.stringify(result, null, 2);
         aiCaseMessage.textContent = `生成成功，共 ${result.length} 条测试用例`;
-        aiExecuteMessage.textContent = `已同步 ${result.length} 条用例到执行列表`;
+        const executable = await loadExecutableCases();
+        aiExecuteMessage.textContent = `已同步 ${executable.length} 条用例到执行列表`;
     } catch (error) {
         aiCaseMessage.textContent = `测试用例生成失败：${error.message}`;
     }
@@ -1040,7 +1060,8 @@ aiCaseImportGenerateBtn.addEventListener("click", async () => {
         aiCaseOutput.textContent = JSON.stringify(result, null, 2);
         const engines = Array.isArray(result.aiEngines) && result.aiEngines.length > 0 ? result.aiEngines.join(", ") : "N/A";
         aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例。AI参与=${result.aiParticipated === true}，引擎=${engines}，远程LLM=${result.remoteLlmUsedCount ?? 0}，回退AI=${result.fallbackAiUsedCount ?? 0}`;
-        aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+        const executable = await loadExecutableCases();
+        aiExecuteMessage.textContent = `已同步 ${executable.length} 条用例到执行列表`;
     } catch (error) {
         aiCaseMessage.textContent = `导入生成失败：${error.message}`;
     }
@@ -1247,6 +1268,9 @@ renderGeneratedTempRows([]);
 
 loadTempCases().catch(() => {
     aiPreCaseMessage.textContent = "暂无预生成案例";
+});
+loadExecutableCases().catch(() => {
+    aiExecuteMessage.textContent = "暂无可执行用例";
 });
 
 loadAiResults().catch(() => {

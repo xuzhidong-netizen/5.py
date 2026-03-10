@@ -122,6 +122,7 @@ const defaultState = {
 
 let state = loadState();
 let latestGeneratedCases = [];
+let latestExecutableCases = [];
 let latestDocImportedFormat = "auto";
 let latestCaseImportedFormat = "auto";
 let latestAiInterfaceRows = [];
@@ -137,6 +138,14 @@ menu.addEventListener("click", (event) => {
   menu.querySelectorAll("button[data-panel]").forEach((item) => item.classList.remove("active"));
   button.classList.add("active");
   panels.forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
+  if (panelId === "aiExecute") {
+    loadExecutableCases();
+  }
+  if (panelId === "aiResults") {
+    const runs = queryAiResults("");
+    renderAiResults(runs);
+    aiResultOutput.textContent = runs.length === 0 ? "暂无执行结果" : JSON.stringify(runs, null, 2);
+  }
 });
 
 function nowText() {
@@ -1040,9 +1049,29 @@ function generateRunId() {
   return `${base}${suffix}`;
 }
 
+function toExecutableCase(caseItem) {
+  return {
+    caseId: caseItem.caseId,
+    caseName: caseItem.caseName,
+    caseType: caseItem.caseType || "正例",
+    status: caseItem.runFlag === "0" ? "DISABLED" : "ENABLED",
+    source: "AI_INTERFACE_CASE",
+    requestBody: caseItem.caseKvBase || "{}"
+  };
+}
+
+function loadExecutableCases() {
+  latestExecutableCases = (state.cases || [])
+    .slice()
+    .sort((a, b) => Number(b.caseId || 0) - Number(a.caseId || 0))
+    .map(toExecutableCase);
+  renderAiCases(latestExecutableCases);
+  return latestExecutableCases;
+}
+
 function executeCases(selectedIds) {
   const caseSet = new Set(selectedIds.map((item) => Number(item)));
-  const selectedCases = latestGeneratedCases.filter((item) => caseSet.has(Number(item.caseId)));
+  const selectedCases = latestExecutableCases.filter((item) => caseSet.has(Number(item.caseId)));
   if (selectedCases.length === 0) {
     throw new Error("未找到可执行测试用例");
   }
@@ -1470,6 +1499,7 @@ function storeAiTempCases(tempIds, autoExecute = true) {
 
   persist();
   refreshAll();
+  loadExecutableCases();
 
   let execution = null;
   let executionHisId = null;
@@ -1540,6 +1570,7 @@ caseForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const result = submitCase(formToJson(caseForm));
   caseMessage.textContent = result.code === 200 ? `${result.msg}，ID=${result.data?.id ?? "-"}` : result.msg;
+  loadExecutableCases();
   output(result);
 });
 
@@ -2010,5 +2041,6 @@ renderGeneratedTempRows([]);
 renderAiInterfaceSaveResults([]);
 renderAiInterfaceExecution(null);
 loadTempCases();
+loadExecutableCases();
 
 setInterval(refreshAll, 5000);

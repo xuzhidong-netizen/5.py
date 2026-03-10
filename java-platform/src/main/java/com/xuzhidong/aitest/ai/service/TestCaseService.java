@@ -74,6 +74,11 @@ public class TestCaseService {
         return testCaseRepository.findAllById(caseIds).stream().map(this::toDto).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<TestCaseDTO> listAll() {
+        return testCaseRepository.findAll().stream().map(this::toDto).toList();
+    }
+
     private String buildPrompt(ApiDefinitionDTO apiDefinition) {
         String requestParams = apiDefinition.getRequestParams().stream()
             .map(this::toParamText)

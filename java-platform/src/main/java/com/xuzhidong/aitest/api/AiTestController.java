@@ -12,6 +12,8 @@ import com.xuzhidong.aitest.ai.service.AiExecutionService;
 import com.xuzhidong.aitest.ai.service.ApiDefinitionImportService;
 import com.xuzhidong.aitest.ai.service.ApiDocumentService;
 import com.xuzhidong.aitest.ai.service.TestCaseService;
+import com.xuzhidong.aitest.model.AiCase;
+import com.xuzhidong.aitest.service.PlatformStore;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -34,15 +38,18 @@ public class AiTestController {
     private final ApiDocumentService apiDocumentService;
     private final TestCaseService testCaseService;
     private final AiExecutionService aiExecutionService;
+    private final PlatformStore platformStore;
 
     public AiTestController(ApiDefinitionImportService apiDefinitionImportService,
                             ApiDocumentService apiDocumentService,
                             TestCaseService testCaseService,
-                            AiExecutionService aiExecutionService) {
+                            AiExecutionService aiExecutionService,
+                            PlatformStore platformStore) {
         this.apiDefinitionImportService = apiDefinitionImportService;
         this.apiDocumentService = apiDocumentService;
         this.testCaseService = testCaseService;
         this.aiExecutionService = aiExecutionService;
+        this.platformStore = platformStore;
     }
 
     @PostMapping("/api/generate-docs")
@@ -124,15 +131,87 @@ public class AiTestController {
 
     @PostMapping("/api/execute-cases")
     public ResponseEntity<ExecutionBatchResultDTO> executeCases(@Valid @RequestBody ExecuteRequestDTO request) {
-        List<TestCaseDTO> testCases = testCaseService.findByIds(request.getCaseIds());
+        List<Long> requestedIds = request.getCaseIds().stream()
+            .filter(item -> item != null)
+            .distinct()
+            .toList();
+        List<TestCaseDTO> testCases = resolveExecutableCases(requestedIds);
         if (testCases.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "未找到可执行测试用例");
         }
         return ResponseEntity.ok(aiExecutionService.executeCases(testCases));
     }
 
+    @GetMapping("/api/execute-cases")
+    public ResponseEntity<List<TestCaseDTO>> listExecutableCases() {
+        List<TestCaseDTO> generatedCases = testCaseService.listAll();
+        Map<Long, TestCaseDTO> merged = new LinkedHashMap<>();
+        for (TestCaseDTO item : generatedCases) {
+            if (item.getCaseId() != null) {
+                merged.put(item.getCaseId(), item);
+            }
+        }
+        for (AiCase item : platformStore.listCases()) {
+            if (item.getCaseId() != null) {
+                merged.putIfAbsent(item.getCaseId(), toExecutionCase(item));
+            }
+        }
+        return ResponseEntity.ok(new ArrayList<>(merged.values()));
+    }
+
     @GetMapping("/api/results")
     public ResponseEntity<List<ExecutionBatchResultDTO>> queryResults(@RequestParam(required = false) String runId) {
         return ResponseEntity.ok(aiExecutionService.queryResults(runId));
+    }
+
+    private List<TestCaseDTO> resolveExecutableCases(List<Long> caseIds) {
+        List<TestCaseDTO> generated = testCaseService.findByIds(caseIds);
+        Map<Long, TestCaseDTO> mapped = new LinkedHashMap<>();
+        for (TestCaseDTO item : generated) {
+            if (item.getCaseId() != null) {
+                mapped.put(item.getCaseId(), item);
+            }
+        }
+        if (mapped.size() < caseIds.size()) {
+            Map<Long, AiCase> platformCaseMap = new LinkedHashMap<>();
+            for (AiCase item : platformStore.listCases()) {
+                if (item.getCaseId() != null) {
+                    platformCaseMap.put(item.getCaseId(), item);
+                }
+            }
+            for (Long caseId : caseIds) {
+                if (caseId != null && !mapped.containsKey(caseId)) {
+                    AiCase platformCase = platformCaseMap.get(caseId);
+                    if (platformCase != null) {
+                        mapped.put(caseId, toExecutionCase(platformCase));
+                    }
+                }
+            }
+        }
+
+        List<TestCaseDTO> ordered = new ArrayList<>();
+        for (Long caseId : caseIds) {
+            TestCaseDTO dto = mapped.get(caseId);
+            if (dto != null) {
+                ordered.add(dto);
+            }
+        }
+        return ordered;
+    }
+
+    private TestCaseDTO toExecutionCase(AiCase aiCase) {
+        TestCaseDTO dto = new TestCaseDTO();
+        dto.setCaseId(aiCase.getCaseId());
+        dto.setApiName(aiCase.getFuncName());
+        dto.setApiPath(aiCase.getFuncNo());
+        dto.setMethod("POST");
+        dto.setCaseName(aiCase.getCaseName());
+        dto.setCaseType(aiCase.getCaseType());
+        dto.setRequestBody(aiCase.getCaseKvBase());
+        dto.setExpectedResult(aiCase.getCaseExpectResult());
+        dto.setCheckRule(aiCase.getCaseCheckFunction());
+        dto.setStatus("1".equals(aiCase.getRunFlag()) ? "ENABLED" : "DISABLED");
+        dto.setSource("AI_INTERFACE_CASE");
+        return dto;
     }
 }
