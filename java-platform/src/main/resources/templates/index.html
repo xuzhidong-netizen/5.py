@@ -58,7 +58,15 @@
             <div class="actions">
                 <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
                 <button id="aiInterfaceSaveRunBtn" type="button">确认入库并自动执行</button>
+                <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
+                <select id="aiInterfaceFilterStatus">
+                    <option value="all">全部状态</option>
+                    <option value="valid">仅可入库</option>
+                    <option value="invalid">仅不可入库</option>
+                    <option value="selected">仅已采纳</option>
+                </select>
             </div>
+            <div id="aiInterfaceStats" class="stats-line"></div>
             <table class="table" id="aiInterfaceTable">
                 <thead>
                 <tr>

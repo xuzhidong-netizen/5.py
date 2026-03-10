@@ -32,6 +32,9 @@ const aiInterfaceText = document.getElementById("aiInterfaceText");
 const aiInterfaceGenerateBtn = document.getElementById("aiInterfaceGenerateBtn");
 const aiInterfaceSelectAllBtn = document.getElementById("aiInterfaceSelectAllBtn");
 const aiInterfaceSaveRunBtn = document.getElementById("aiInterfaceSaveRunBtn");
+const aiInterfaceFilterKeyword = document.getElementById("aiInterfaceFilterKeyword");
+const aiInterfaceFilterStatus = document.getElementById("aiInterfaceFilterStatus");
+const aiInterfaceStats = document.getElementById("aiInterfaceStats");
 const aiInterfaceTableBody = document.querySelector("#aiInterfaceTable tbody");
 const aiInterfaceSaveTableBody = document.querySelector("#aiInterfaceSaveTable tbody");
 const aiInterfaceExecutionTableBody = document.querySelector("#aiInterfaceExecutionTable tbody");
@@ -202,25 +205,27 @@ async function parseAiInterfaceFile(file) {
 }
 
 function renderAiInterfaceCandidates(candidates) {
-    aiInterfaceTableBody.innerHTML = candidates.map((item) => `
+    const visibleCandidates = filterAiInterfaceCandidates(candidates);
+    aiInterfaceTableBody.innerHTML = visibleCandidates.map((item) => `
       <tr>
         <td>
             <input
                 type="checkbox"
                 class="ai-interface-checkbox"
                 value="${item.candidateId}"
-                ${item.valid === false ? "disabled" : "checked"}
+                ${item.valid === false ? "disabled" : ""}
+                ${item.selected ? "checked" : ""}
             >
         </td>
         <td>${item.source || "-"}</td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysId" value="${item.sysId || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysName" value="${item.sysName || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcNo" value="${item.funcNo || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcName" value="${item.funcName || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcType" value="${item.funcType || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseId" value="${item.caseId ?? ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseName" value="${item.caseName || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="moduleName" value="${item.moduleName || ""}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysId" value="${escapeHtml(item.sysId || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysName" value="${escapeHtml(item.sysName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcNo" value="${escapeHtml(item.funcNo || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcName" value="${escapeHtml(item.funcName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcType" value="${escapeHtml(item.funcType || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseId" value="${escapeHtml(String(item.caseId ?? ""))}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="moduleName" value="${escapeHtml(item.moduleName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
         <td>${item.valid === false ? "不可入库" : "可入库"}<br>${item.validationMessage || "-"}</td>
         <td>
             <div class="table-actions">
@@ -231,6 +236,72 @@ function renderAiInterfaceCandidates(candidates) {
         </td>
       </tr>
     `).join("");
+    renderAiInterfaceStats(candidates);
+}
+
+function filterAiInterfaceCandidates(candidates) {
+    const keyword = String(aiInterfaceFilterKeyword?.value || "").trim().toLowerCase();
+    const status = String(aiInterfaceFilterStatus?.value || "all");
+    return (candidates || []).filter((item) => {
+        if (status === "valid" && !item.valid) {
+            return false;
+        }
+        if (status === "invalid" && item.valid) {
+            return false;
+        }
+        if (status === "selected" && !item.selected) {
+            return false;
+        }
+        if (!keyword) {
+            return true;
+        }
+        const text = [
+            item.sysId,
+            item.sysName,
+            item.funcNo,
+            item.funcName,
+            item.caseName,
+            item.moduleName
+        ].map((val) => String(val || "").toLowerCase()).join("|");
+        return text.includes(keyword);
+    });
+}
+
+function renderAiInterfaceStats(candidates) {
+    if (!aiInterfaceStats) {
+        return;
+    }
+    const total = (candidates || []).length;
+    const valid = (candidates || []).filter((item) => item.valid).length;
+    const selected = (candidates || []).filter((item) => item.selected).length;
+    const invalid = total - valid;
+    aiInterfaceStats.textContent = `候选总数: ${total} | 可入库: ${valid} | 不可入库: ${invalid} | 已采纳: ${selected}`;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+}
+
+function setButtonBusy(button, busy, busyText) {
+    if (!button) {
+        return;
+    }
+    if (busy) {
+        if (!button.dataset.originalText) {
+            button.dataset.originalText = button.textContent || "";
+        }
+        button.disabled = true;
+        button.textContent = busyText;
+    } else {
+        button.disabled = false;
+        if (button.dataset.originalText) {
+            button.textContent = button.dataset.originalText;
+        }
+    }
 }
 
 function renderAiInterfaceSaveResults(items) {
@@ -267,6 +338,9 @@ function renderAiInterfaceExecution(execution) {
 }
 
 function validateAiInterfaceCandidate(candidate) {
+    const caseIdText = String(candidate.caseId ?? "").trim();
+    const caseIdValue = Number(caseIdText);
+    const caseIdValid = caseIdText !== "" && Number.isFinite(caseIdValue);
     const valid = Boolean(
         String(candidate.sysId || "").trim()
         && String(candidate.sysName || "").trim()
@@ -276,12 +350,16 @@ function validateAiInterfaceCandidate(candidate) {
         && String(candidate.moduleName || "").trim()
         && String(candidate.caseName || "").trim()
         && String(candidate.caseKvBase || "").trim()
-        && String(candidate.caseId || "").trim()
+        && caseIdValid
     );
+    candidate.caseId = caseIdValid ? caseIdValue : candidate.caseId;
     candidate.valid = valid;
     candidate.validationMessage = valid
         ? "可入库"
         : "缺少必填字段（sysId/sysName/funcNo/funcName/funcType/caseId/caseName/caseKvBase/moduleName）";
+    if (!valid) {
+        candidate.selected = false;
+    }
 }
 
 async function http(path, options = {}) {
@@ -463,8 +541,24 @@ aiInterfaceTableBody.addEventListener("input", (event) => {
         return;
     }
     const value = input.value;
-    candidate[field] = field === "caseId" ? Number(value) : value;
+    candidate[field] = field === "caseId"
+        ? (String(value).trim() === "" ? "" : Number(value))
+        : value;
     validateAiInterfaceCandidate(candidate);
+    renderAiInterfaceStats(latestAiInterfaceCandidates);
+});
+
+aiInterfaceTableBody.addEventListener("change", (event) => {
+    const checkbox = event.target.closest(".ai-interface-checkbox");
+    if (!checkbox) {
+        return;
+    }
+    const candidate = latestAiInterfaceCandidates.find((item) => item.candidateId === checkbox.value);
+    if (!candidate) {
+        return;
+    }
+    candidate.selected = checkbox.checked && candidate.valid;
+    renderAiInterfaceStats(latestAiInterfaceCandidates);
 });
 
 aiInterfaceTableBody.addEventListener("click", (event) => {
@@ -484,10 +578,8 @@ aiInterfaceTableBody.addEventListener("click", (event) => {
             aiInterfaceMessage.textContent = "该行必填字段未完整，不能采纳";
             return;
         }
-        const checkbox = aiInterfaceTableBody.querySelector(`.ai-interface-checkbox[value="${candidateId}"]`);
-        if (checkbox) {
-            checkbox.checked = !checkbox.checked;
-        }
+        candidate.selected = !candidate.selected;
+        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
         return;
     }
 
@@ -507,6 +599,14 @@ aiInterfaceTableBody.addEventListener("click", (event) => {
         renderAiInterfaceCandidates(latestAiInterfaceCandidates);
         aiInterfaceMessage.textContent = "已删除该候选案例";
     }
+});
+
+aiInterfaceFilterKeyword.addEventListener("input", () => {
+    renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+});
+
+aiInterfaceFilterStatus.addEventListener("change", () => {
+    renderAiInterfaceCandidates(latestAiInterfaceCandidates);
 });
 
 aiInterfaceFile.addEventListener("change", async (event) => {
@@ -536,6 +636,7 @@ aiInterfaceGenerateBtn.addEventListener("click", async () => {
         aiInterfaceMessage.textContent = "请先导入Excel/CSV或输入文本";
         return;
     }
+    setButtonBusy(aiInterfaceGenerateBtn, true, "生成中...");
     try {
         const result = await http("/api/ai/interface-cases/generate", {
             method: "POST",
@@ -549,26 +650,32 @@ aiInterfaceGenerateBtn.addEventListener("click", async () => {
         latestAiInterfaceCandidates = Array.isArray(data.candidates) ? data.candidates : [];
         latestAiInterfaceSaveItems = [];
         aiInterfaceEditState.clear();
-        latestAiInterfaceCandidates.forEach((item) => validateAiInterfaceCandidate(item));
+        latestAiInterfaceCandidates.forEach((item) => {
+            validateAiInterfaceCandidate(item);
+            item.selected = Boolean(item.valid);
+        });
         renderAiInterfaceCandidates(latestAiInterfaceCandidates);
         renderAiInterfaceSaveResults([]);
         renderAiInterfaceExecution(null);
         aiInterfaceMessage.textContent = `${result.msg}，候选 ${latestAiInterfaceCandidates.length} 条，AI引擎=${data.aiEngine || "N/A"}`;
     } catch (error) {
         aiInterfaceMessage.textContent = `生成失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiInterfaceGenerateBtn, false);
     }
 });
 
 aiInterfaceSelectAllBtn.addEventListener("click", () => {
-    const checkboxes = Array.from(document.querySelectorAll(".ai-interface-checkbox:not([disabled])"));
-    if (checkboxes.length === 0) {
+    const visible = filterAiInterfaceCandidates(latestAiInterfaceCandidates).filter((item) => item.valid);
+    if (visible.length === 0) {
         aiInterfaceMessage.textContent = "当前没有可选候选案例";
         return;
     }
-    const allChecked = checkboxes.every((item) => item.checked);
-    checkboxes.forEach((item) => {
-        item.checked = !allChecked;
+    const allChecked = visible.every((item) => item.selected);
+    visible.forEach((item) => {
+        item.selected = !allChecked;
     });
+    renderAiInterfaceCandidates(latestAiInterfaceCandidates);
 });
 
 aiInterfaceSaveRunBtn.addEventListener("click", async () => {
@@ -576,13 +683,15 @@ aiInterfaceSaveRunBtn.addEventListener("click", async () => {
         aiInterfaceMessage.textContent = "请先执行AI生成";
         return;
     }
-    const selectedIds = Array.from(document.querySelectorAll(".ai-interface-checkbox:checked"))
-        .map((item) => item.value)
+    const selectedIds = latestAiInterfaceCandidates
+        .filter((item) => item.selected && item.valid)
+        .map((item) => item.candidateId)
         .filter((item) => item);
     if (selectedIds.length === 0) {
         aiInterfaceMessage.textContent = "请至少勾选一个候选案例";
         return;
     }
+    setButtonBusy(aiInterfaceSaveRunBtn, true, "入库执行中...");
     try {
         const result = await http("/api/ai/interface-cases/save", {
             method: "POST",
@@ -604,6 +713,8 @@ aiInterfaceSaveRunBtn.addEventListener("click", async () => {
         await refreshAll();
     } catch (error) {
         aiInterfaceMessage.textContent = `入库执行失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiInterfaceSaveRunBtn, false);
     }
 });
 
@@ -941,6 +1052,7 @@ aiDocOpenApiOutput.textContent = "提交接口定义后自动生成 OpenAPI JSON
 aiCaseOutput.textContent = "生成后的测试用例会显示在这里";
 aiExecuteOutput.textContent = "请选择测试用例并执行";
 aiResultOutput.textContent = "执行后可在这里查看批次结果";
+renderAiInterfaceCandidates([]);
 renderAiInterfaceSaveResults([]);
 renderAiInterfaceExecution(null);
 

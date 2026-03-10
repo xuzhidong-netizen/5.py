@@ -183,6 +183,16 @@ button {
   flex-wrap: wrap;
 }
 
+.actions input,
+.actions select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: #ffffff;
+  min-width: 180px;
+}
+
 .inline-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -228,6 +238,12 @@ pre.architecture {
 
 .table th {
   background: #f1f5f9;
+}
+
+.stats-line {
+  margin: 8px 0 6px;
+  color: #334155;
+  font-size: 13px;
 }
 
 .table-input {
