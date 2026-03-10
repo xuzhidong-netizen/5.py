@@ -210,6 +210,8 @@ class ManualFlowIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.apiName").value("资产查询接口"))
             .andExpect(jsonPath("$.markdown").exists())
+            .andExpect(jsonPath("$.aiParticipated").value(true))
+            .andExpect(jsonPath("$.aiEngine").exists())
             .andExpect(jsonPath("$.openApi.openapi").value("3.0.3"));
 
         MvcResult caseResult = mockMvc.perform(post("/api/generate-cases")
@@ -311,5 +313,61 @@ class ManualFlowIntegrationTest {
             .andExpect(jsonPath("$.aiEngines[0]").exists())
             .andExpect(jsonPath("$.apiDefinitions[0].apiPath").value("/api/account/balance"))
             .andExpect(jsonPath("$.generatedCases[0].apiName").value("余额查询"));
+    }
+
+    @Test
+    void shouldImportOpenApiDocAndGenerateDocs() throws Exception {
+        String openApiDoc = """
+            {
+              "openapi": "3.0.3",
+              "info": {
+                "title": "导入文档测试",
+                "version": "1.0.0"
+              },
+              "paths": {
+                "/api/order/status": {
+                  "get": {
+                    "summary": "订单状态查询",
+                    "parameters": [
+                      {"name":"orderId","required":true,"schema":{"type":"string","example":"O1001"}}
+                    ],
+                    "responses": {
+                      "200": {
+                        "description": "success",
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "object",
+                              "properties": {
+                                "status": {"type":"string","example":"DONE"},
+                                "message": {"type":"string","example":"ok"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        mockMvc.perform(post("/api/generate-docs/import")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "format": "json",
+                      "documentContent": %s
+                    }
+                    """.formatted(objectMapper.writeValueAsString(openApiDoc))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apiCount").value(1))
+            .andExpect(jsonPath("$.aiParticipated").value(true))
+            .andExpect(jsonPath("$.aiEngines[0]").exists())
+            .andExpect(jsonPath("$.documents[0].apiPath").value("/api/order/status"))
+            .andExpect(jsonPath("$.documents[0].aiParticipated").value(true))
+            .andExpect(jsonPath("$.documents[0].aiEngine").exists())
+            .andExpect(jsonPath("$.documents[0].markdown").exists());
     }
 }

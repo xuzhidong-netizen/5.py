@@ -11,22 +11,111 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ApiDocumentService {
 
+    public static final String AI_ENGINE_REMOTE_LLM = "REMOTE_LLM";
+    public static final String AI_ENGINE_LOCAL_FALLBACK = "LOCAL_RULE_AI";
+
+    private final LlmClient llmClient;
+
+    public ApiDocumentService(LlmClient llmClient) {
+        this.llmClient = llmClient;
+    }
+
     public ApiDocumentDTO generate(ApiDefinitionDTO definition) {
+        return generateWithAiTrace(definition).getDocument();
+    }
+
+    public AiDocGenerationTrace generateWithAiTrace(ApiDefinitionDTO definition) {
+        String prompt = buildPrompt(definition);
+        String aiEngine = AI_ENGINE_LOCAL_FALLBACK;
+        String markdown = buildLocalMarkdown(definition);
+        String aiResponse = "";
+
+        try {
+            aiResponse = llmClient.chat(prompt);
+        } catch (Exception ignored) {
+            aiResponse = "";
+        }
+        String remoteMarkdown = normalizeMarkdown(aiResponse);
+        if (!remoteMarkdown.isBlank()) {
+            markdown = remoteMarkdown;
+            aiEngine = AI_ENGINE_REMOTE_LLM;
+        }
+
         ApiDocumentDTO document = new ApiDocumentDTO();
         document.setApiName(definition.getApiName());
         document.setApiPath(definition.getApiPath());
         document.setMethod(normalizeMethod(definition.getMethod()));
         document.setGeneratedAt(LocalDateTime.now());
-        document.setMarkdown(buildMarkdown(definition));
+        document.setAiParticipated(true);
+        document.setAiEngine(aiEngine);
+        document.setRemoteLlmConfigured(llmClient.isConfigured());
+        document.setRemoteLlmUsed(AI_ENGINE_REMOTE_LLM.equals(aiEngine));
+        document.setMarkdown(markdown);
         document.setOpenApi(buildOpenApi(definition));
-        return document;
+        return new AiDocGenerationTrace(
+            document,
+            aiEngine,
+            prompt,
+            llmClient.isConfigured(),
+            AI_ENGINE_REMOTE_LLM.equals(aiEngine)
+        );
     }
 
-    private String buildMarkdown(ApiDefinitionDTO definition) {
+    private String buildPrompt(ApiDefinitionDTO definition) {
+        String requestParams = definition.getRequestParams().stream()
+            .map(this::toParamText)
+            .collect(Collectors.joining("; "));
+        String responseParams = definition.getResponseParams().stream()
+            .map(this::toParamText)
+            .collect(Collectors.joining("; "));
+        return """
+            你是接口文档专家。请根据接口定义输出简洁清晰的 Markdown 接口文档。
+            要包含：接口名称、请求路径、请求方法、请求参数表、响应参数表、示例说明。
+            接口名称: %s
+            请求路径: %s
+            请求方法: %s
+            请求参数: %s
+            响应参数: %s
+            """.formatted(
+            definition.getApiName(),
+            definition.getApiPath(),
+            normalizeMethod(definition.getMethod()),
+            requestParams.isBlank() ? "无" : requestParams,
+            responseParams.isBlank() ? "无" : responseParams
+        );
+    }
+
+    private String toParamText(ApiParamDTO item) {
+        return "%s(%s,required=%s,desc=%s,example=%s)".formatted(
+            valueOrDefault(item.getName(), "-"),
+            valueOrDefault(item.getType(), "string"),
+            item.getRequired() != null && item.getRequired(),
+            valueOrDefault(item.getDescription(), "-"),
+            valueOrDefault(item.getExample(), "-")
+        );
+    }
+
+    private String normalizeMarkdown(String aiResponse) {
+        if (aiResponse == null || aiResponse.isBlank()) {
+            return "";
+        }
+        String trimmed = aiResponse.trim();
+        if (trimmed.startsWith("```")) {
+            int firstNewline = trimmed.indexOf('\n');
+            int lastFence = trimmed.lastIndexOf("```");
+            if (firstNewline > -1 && lastFence > firstNewline) {
+                return trimmed.substring(firstNewline + 1, lastFence).trim();
+            }
+        }
+        return trimmed;
+    }
+
+    private String buildLocalMarkdown(ApiDefinitionDTO definition) {
         StringBuilder sb = new StringBuilder();
         sb.append("## ").append(definition.getApiName()).append('\n');
         sb.append("- 路径: `").append(definition.getApiPath()).append("`\n");
@@ -149,5 +238,41 @@ public class ApiDocumentService {
 
     private String valueOrDefault(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    public static class AiDocGenerationTrace {
+        private final ApiDocumentDTO document;
+        private final String aiEngine;
+        private final String prompt;
+        private final boolean remoteConfigured;
+        private final boolean remoteResponseUsed;
+
+        public AiDocGenerationTrace(ApiDocumentDTO document, String aiEngine, String prompt, boolean remoteConfigured, boolean remoteResponseUsed) {
+            this.document = document;
+            this.aiEngine = aiEngine;
+            this.prompt = prompt;
+            this.remoteConfigured = remoteConfigured;
+            this.remoteResponseUsed = remoteResponseUsed;
+        }
+
+        public ApiDocumentDTO getDocument() {
+            return document;
+        }
+
+        public String getAiEngine() {
+            return aiEngine;
+        }
+
+        public String getPrompt() {
+            return prompt;
+        }
+
+        public boolean isRemoteConfigured() {
+            return remoteConfigured;
+        }
+
+        public boolean isRemoteResponseUsed() {
+            return remoteResponseUsed;
+        }
     }
 }

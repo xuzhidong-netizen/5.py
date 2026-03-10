@@ -1,6 +1,7 @@
 package com.xuzhidong.aitest.api;
 
 import com.xuzhidong.aitest.ai.dto.ApiDefinitionDTO;
+import com.xuzhidong.aitest.ai.dto.ApiDocumentBatchResultDTO;
 import com.xuzhidong.aitest.ai.dto.ApiDocumentImportRequestDTO;
 import com.xuzhidong.aitest.ai.dto.ApiDocumentImportResultDTO;
 import com.xuzhidong.aitest.ai.dto.ApiDocumentDTO;
@@ -47,6 +48,39 @@ public class AiTestController {
     @PostMapping("/api/generate-docs")
     public ResponseEntity<ApiDocumentDTO> generateDocs(@Valid @RequestBody ApiDefinitionDTO apiDefinition) {
         return ResponseEntity.ok(apiDocumentService.generate(apiDefinition));
+    }
+
+    @PostMapping("/api/generate-docs/import")
+    public ResponseEntity<ApiDocumentBatchResultDTO> generateDocsByImportedDocument(@Valid @RequestBody ApiDocumentImportRequestDTO request) {
+        List<ApiDefinitionDTO> definitions = apiDefinitionImportService.parse(request.getDocumentContent(), request.getFormat());
+        if (definitions.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "导入文档未识别到可用接口定义");
+        }
+
+        List<ApiDocumentDTO> documents = new ArrayList<>();
+        Set<String> aiEngines = new LinkedHashSet<>();
+        int remoteCount = 0;
+        int fallbackCount = 0;
+        for (ApiDefinitionDTO definition : definitions) {
+            ApiDocumentService.AiDocGenerationTrace trace = apiDocumentService.generateWithAiTrace(definition);
+            documents.add(trace.getDocument());
+            aiEngines.add(trace.getAiEngine());
+            if (ApiDocumentService.AI_ENGINE_REMOTE_LLM.equals(trace.getAiEngine())) {
+                remoteCount += 1;
+            } else {
+                fallbackCount += 1;
+            }
+        }
+
+        ApiDocumentBatchResultDTO result = new ApiDocumentBatchResultDTO();
+        result.setApiDefinitions(definitions);
+        result.setDocuments(documents);
+        result.setApiCount(definitions.size());
+        result.setAiParticipated(true);
+        result.setAiEngines(new ArrayList<>(aiEngines));
+        result.setRemoteLlmUsedCount(remoteCount);
+        result.setFallbackAiUsedCount(fallbackCount);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/api/generate-cases")

@@ -251,7 +251,8 @@ pre.architecture {
     color: #1d4ed8;
 }
 
-#aiImportText {
+#aiDocImportText,
+#aiCaseImportText {
     min-height: 180px;
 }
 

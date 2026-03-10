@@ -28,14 +28,17 @@ const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
 
 const aiDocForm = document.getElementById("aiDocForm");
+const aiDocImportFile = document.getElementById("aiDocImportFile");
+const aiDocImportText = document.getElementById("aiDocImportText");
+const aiDocImportGenerateBtn = document.getElementById("aiDocImportGenerateBtn");
 const aiDocMessage = document.getElementById("aiDocMessage");
 const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
 
 const aiCaseForm = document.getElementById("aiCaseForm");
-const aiImportFile = document.getElementById("aiImportFile");
-const aiImportText = document.getElementById("aiImportText");
-const aiImportGenerateBtn = document.getElementById("aiImportGenerateBtn");
+const aiCaseImportFile = document.getElementById("aiCaseImportFile");
+const aiCaseImportText = document.getElementById("aiCaseImportText");
+const aiCaseImportGenerateBtn = document.getElementById("aiCaseImportGenerateBtn");
 const aiCaseMessage = document.getElementById("aiCaseMessage");
 const aiCaseOutput = document.getElementById("aiCaseOutput");
 const aiCaseTableBody = document.querySelector("#aiCaseTable tbody");
@@ -52,7 +55,8 @@ const aiResultTableBody = document.querySelector("#aiResultTable tbody");
 const aiResultOutput = document.getElementById("aiResultOutput");
 
 let latestGeneratedCases = [];
-let latestImportedFormat = "auto";
+let latestDocImportedFormat = "auto";
+let latestCaseImportedFormat = "auto";
 
 menu.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-panel]");
@@ -280,11 +284,77 @@ aiDocForm.addEventListener("submit", async (event) => {
             method: "POST",
             body: JSON.stringify(payload)
         });
-        aiDocMessage.textContent = "接口文档生成成功";
+        aiDocMessage.textContent = `接口文档生成成功。AI参与=${result.aiParticipated === true}，引擎=${result.aiEngine || "N/A"}，远程LLM使用=${result.remoteLlmUsed === true}`;
         aiDocMarkdownOutput.textContent = result.markdown || "";
-        aiDocOpenApiOutput.textContent = JSON.stringify(result.openApi || {}, null, 2);
+        aiDocOpenApiOutput.textContent = JSON.stringify({
+            aiParticipated: result.aiParticipated,
+            aiEngine: result.aiEngine,
+            remoteLlmConfigured: result.remoteLlmConfigured,
+            remoteLlmUsed: result.remoteLlmUsed,
+            openApi: result.openApi || {}
+        }, null, 2);
     } catch (error) {
         aiDocMessage.textContent = `接口文档生成失败：${error.message}`;
+    }
+});
+
+aiDocImportFile.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+    try {
+        const text = await file.text();
+        aiDocImportText.value = text;
+        latestDocImportedFormat = detectDocFormatByFileName(file.name);
+        aiDocMessage.textContent = `已导入接口文档文件：${file.name}`;
+    } catch (error) {
+        aiDocMessage.textContent = `读取文档失败：${error.message}`;
+    }
+});
+
+aiDocImportGenerateBtn.addEventListener("click", async () => {
+    const content = String(aiDocImportText.value || "").trim();
+    if (!content) {
+        aiDocMessage.textContent = "请先粘贴或导入接口文档";
+        return;
+    }
+    try {
+        const result = await http("/api/generate-docs/import", {
+            method: "POST",
+            body: JSON.stringify({
+                documentContent: content,
+                format: latestDocImportedFormat
+            })
+        });
+        const documents = Array.isArray(result.documents) ? result.documents : [];
+        const markdown = documents.map((item, index) => `### [${index + 1}] ${item.apiName || "-"}\n\n${item.markdown || ""}`).join("\n\n---\n\n");
+        aiDocMarkdownOutput.textContent = markdown || "未生成文档内容";
+        const openApiOutput = documents.length === 1
+            ? {
+                aiParticipated: result.aiParticipated,
+                aiEngines: result.aiEngines,
+                remoteLlmUsedCount: result.remoteLlmUsedCount,
+                fallbackAiUsedCount: result.fallbackAiUsedCount,
+                openApi: documents[0].openApi || {}
+            }
+            : {
+                aiParticipated: result.aiParticipated,
+                aiEngines: result.aiEngines,
+                remoteLlmUsedCount: result.remoteLlmUsedCount,
+                fallbackAiUsedCount: result.fallbackAiUsedCount,
+                documents: documents.map((item) => ({
+                    apiName: item.apiName,
+                    apiPath: item.apiPath,
+                    aiEngine: item.aiEngine,
+                    openApi: item.openApi || {}
+                }))
+            };
+        aiDocOpenApiOutput.textContent = JSON.stringify(openApiOutput, null, 2);
+        const engines = Array.isArray(result.aiEngines) && result.aiEngines.length > 0 ? result.aiEngines.join(", ") : "N/A";
+        aiDocMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口并完成文档生成。AI参与=${result.aiParticipated === true}，引擎=${engines}，远程LLM=${result.remoteLlmUsedCount ?? 0}，回退AI=${result.fallbackAiUsedCount ?? 0}`;
+    } catch (error) {
+        aiDocMessage.textContent = `导入生成失败：${error.message}`;
     }
 });
 
@@ -306,23 +376,23 @@ aiCaseForm.addEventListener("submit", async (event) => {
     }
 });
 
-aiImportFile.addEventListener("change", async (event) => {
+aiCaseImportFile.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) {
         return;
     }
     try {
         const text = await file.text();
-        aiImportText.value = text;
-        latestImportedFormat = detectDocFormatByFileName(file.name);
+        aiCaseImportText.value = text;
+        latestCaseImportedFormat = detectDocFormatByFileName(file.name);
         aiCaseMessage.textContent = `已导入文档文件：${file.name}`;
     } catch (error) {
         aiCaseMessage.textContent = `读取文件失败：${error.message}`;
     }
 });
 
-aiImportGenerateBtn.addEventListener("click", async () => {
-    const content = String(aiImportText.value || "").trim();
+aiCaseImportGenerateBtn.addEventListener("click", async () => {
+    const content = String(aiCaseImportText.value || "").trim();
     if (!content) {
         aiCaseMessage.textContent = "请先粘贴或导入接口文档";
         return;
@@ -332,7 +402,7 @@ aiImportGenerateBtn.addEventListener("click", async () => {
             method: "POST",
             body: JSON.stringify({
                 documentContent: content,
-                format: latestImportedFormat
+                format: latestCaseImportedFormat
             })
         });
         latestGeneratedCases = result.generatedCases || [];

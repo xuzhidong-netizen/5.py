@@ -10,6 +10,10 @@ public class ApiDocumentDTO {
     private String apiPath;
     private String method;
     private LocalDateTime generatedAt;
+    private boolean aiParticipated;
+    private String aiEngine;
+    private boolean remoteLlmConfigured;
+    private boolean remoteLlmUsed;
     private String markdown;
     private Map<String, Object> openApi = new LinkedHashMap<>();
 
@@ -43,6 +47,38 @@ public class ApiDocumentDTO {
 
     public void setGeneratedAt(LocalDateTime generatedAt) {
         this.generatedAt = generatedAt;
+    }
+
+    public boolean isAiParticipated() {
+        return aiParticipated;
+    }
+
+    public void setAiParticipated(boolean aiParticipated) {
+        this.aiParticipated = aiParticipated;
+    }
+
+    public String getAiEngine() {
+        return aiEngine;
+    }
+
+    public void setAiEngine(String aiEngine) {
+        this.aiEngine = aiEngine;
+    }
+
+    public boolean isRemoteLlmConfigured() {
+        return remoteLlmConfigured;
+    }
+
+    public void setRemoteLlmConfigured(boolean remoteLlmConfigured) {
+        this.remoteLlmConfigured = remoteLlmConfigured;
+    }
+
+    public boolean isRemoteLlmUsed() {
+        return remoteLlmUsed;
+    }
+
+    public void setRemoteLlmUsed(boolean remoteLlmUsed) {
+        this.remoteLlmUsed = remoteLlmUsed;
     }
 
     public String getMarkdown() {

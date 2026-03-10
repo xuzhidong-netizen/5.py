@@ -30,14 +30,17 @@ const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
 
 const aiDocForm = document.getElementById("aiDocForm");
+const aiDocImportFile = document.getElementById("aiDocImportFile");
+const aiDocImportText = document.getElementById("aiDocImportText");
+const aiDocImportGenerateBtn = document.getElementById("aiDocImportGenerateBtn");
 const aiDocMessage = document.getElementById("aiDocMessage");
 const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
 
 const aiCaseForm = document.getElementById("aiCaseForm");
-const aiImportFile = document.getElementById("aiImportFile");
-const aiImportText = document.getElementById("aiImportText");
-const aiImportGenerateBtn = document.getElementById("aiImportGenerateBtn");
+const aiCaseImportFile = document.getElementById("aiCaseImportFile");
+const aiCaseImportText = document.getElementById("aiCaseImportText");
+const aiCaseImportGenerateBtn = document.getElementById("aiCaseImportGenerateBtn");
 const aiCaseMessage = document.getElementById("aiCaseMessage");
 const aiCaseOutput = document.getElementById("aiCaseOutput");
 const aiCaseTableBody = document.querySelector("#aiCaseTable tbody");
@@ -99,7 +102,8 @@ const defaultState = {
 
 let state = loadState();
 let latestGeneratedCases = [];
-let latestImportedFormat = "auto";
+let latestDocImportedFormat = "auto";
+let latestCaseImportedFormat = "auto";
 
 menu.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-panel]");
@@ -368,6 +372,10 @@ function generateDocs(definition) {
     apiPath: definition.apiPath,
     method: normalizeMethod(definition.method),
     generatedAt: nowText(),
+    aiParticipated: true,
+    aiEngine: "DEMO_AI_ENGINE",
+    remoteLlmConfigured: false,
+    remoteLlmUsed: false,
     markdown,
     openApi: {
       openapi: "3.0.3",
@@ -844,11 +852,59 @@ aiDocForm.addEventListener("submit", (event) => {
   try {
     const definition = buildApiDefinition(aiDocForm);
     const docs = generateDocs(definition);
-    aiDocMessage.textContent = "接口文档生成成功";
+    aiDocMessage.textContent = `接口文档生成成功。AI参与=${docs.aiParticipated === true}，引擎=${docs.aiEngine}`;
     aiDocMarkdownOutput.textContent = docs.markdown;
-    aiDocOpenApiOutput.textContent = JSON.stringify(docs.openApi, null, 2);
+    aiDocOpenApiOutput.textContent = JSON.stringify({
+      aiParticipated: docs.aiParticipated,
+      aiEngine: docs.aiEngine,
+      remoteLlmConfigured: docs.remoteLlmConfigured,
+      remoteLlmUsed: docs.remoteLlmUsed,
+      openApi: docs.openApi
+    }, null, 2);
   } catch (error) {
     aiDocMessage.textContent = `接口文档生成失败：${error.message}`;
+  }
+});
+
+aiDocImportFile.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    aiDocImportText.value = text;
+    latestDocImportedFormat = detectDocFormatByFileName(file.name);
+    aiDocMessage.textContent = `已导入接口文档文件：${file.name}`;
+  } catch (error) {
+    aiDocMessage.textContent = `读取文档失败：${error.message}`;
+  }
+});
+
+aiDocImportGenerateBtn.addEventListener("click", () => {
+  const content = String(aiDocImportText.value || "").trim();
+  if (!content) {
+    aiDocMessage.textContent = "请先粘贴或导入接口文档";
+    return;
+  }
+  try {
+    const definitions = parseDefinitionsFromImportedDoc(content, latestDocImportedFormat);
+    if (definitions.length === 0) {
+      throw new Error("导入文档未识别到可用接口定义");
+    }
+    const documents = definitions.map((definition) => generateDocs(definition));
+    const result = {
+      apiCount: definitions.length,
+      aiParticipated: true,
+      aiEngines: ["DEMO_AI_ENGINE"],
+      remoteLlmUsedCount: 0,
+      fallbackAiUsedCount: definitions.length,
+      apiDefinitions: definitions,
+      documents
+    };
+    aiDocMarkdownOutput.textContent = documents.map((item, index) => `### [${index + 1}] ${item.apiName}\n\n${item.markdown}`).join("\n\n---\n\n");
+    aiDocOpenApiOutput.textContent = JSON.stringify(result, null, 2);
+    aiDocMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口并完成文档生成。AI参与=true，引擎=${result.aiEngines.join(", ")}`;
+  } catch (error) {
+    aiDocMessage.textContent = `导入生成失败：${error.message}`;
   }
 });
 
@@ -867,27 +923,27 @@ aiCaseForm.addEventListener("submit", (event) => {
   }
 });
 
-aiImportFile.addEventListener("change", async (event) => {
+aiCaseImportFile.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
     const text = await file.text();
-    aiImportText.value = text;
-    latestImportedFormat = detectDocFormatByFileName(file.name);
+    aiCaseImportText.value = text;
+    latestCaseImportedFormat = detectDocFormatByFileName(file.name);
     aiCaseMessage.textContent = `已导入文档文件：${file.name}`;
   } catch (error) {
     aiCaseMessage.textContent = `读取文件失败：${error.message}`;
   }
 });
 
-aiImportGenerateBtn.addEventListener("click", () => {
-  const content = String(aiImportText.value || "").trim();
+aiCaseImportGenerateBtn.addEventListener("click", () => {
+  const content = String(aiCaseImportText.value || "").trim();
   if (!content) {
     aiCaseMessage.textContent = "请先粘贴或导入接口文档";
     return;
   }
   try {
-    const definitions = parseDefinitionsFromImportedDoc(content, latestImportedFormat);
+    const definitions = parseDefinitionsFromImportedDoc(content, latestCaseImportedFormat);
     if (definitions.length === 0) {
       throw new Error("导入文档未识别到可用接口定义");
     }
