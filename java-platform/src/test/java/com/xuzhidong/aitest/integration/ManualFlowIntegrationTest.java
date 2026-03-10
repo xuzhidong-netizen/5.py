@@ -144,4 +144,44 @@ class ManualFlowIntegrationTest {
             .andExpect(jsonPath("$.data.generatedCase.funcNo").value("500.6"))
             .andExpect(jsonPath("$.data.generatedCase.caseName").value(org.hamcrest.Matchers.containsString("AI生成_")));
     }
+
+    @Test
+    void shouldGenerateAndExecuteTestCasesByApiDefinition() throws Exception {
+        MvcResult generateResult = mockMvc.perform(post("/api/test/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "apiName": "下单接口",
+                      "apiPath": "/api/order/create",
+                      "method": "POST",
+                      "requestParams": [
+                        {"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},
+                        {"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},
+                        {"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}
+                      ],
+                      "responseParams": [
+                        {"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},
+                        {"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].apiName").value("下单接口"))
+            .andReturn();
+
+        JsonNode generated = objectMapper.readTree(generateResult.getResponse().getContentAsString());
+        assertTrue(generated.isArray());
+        assertTrue(generated.size() >= 3);
+        long caseId = generated.get(0).path("caseId").asLong();
+        assertTrue(caseId > 0);
+
+        mockMvc.perform(post("/api/test/execute")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"caseIds":[%s]}
+                    """.formatted(caseId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].status").exists())
+            .andExpect(jsonPath("$[0].caseId").value(caseId));
+    }
 }

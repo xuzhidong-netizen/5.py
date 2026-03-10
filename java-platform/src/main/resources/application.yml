@@ -6,6 +6,24 @@ spring:
     name: java-api-test-platform
   thymeleaf:
     cache: false
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:autotest;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
 
 platform:
   title: 经典接口测试自动化平台 (Java)
+  ai:
+    model-url: ${LLM_MODEL_URL:}
+    temperature: ${LLM_TEMPERATURE:0.2}

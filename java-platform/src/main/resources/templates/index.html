@@ -34,24 +34,25 @@
             <p>这是一个经典的接口测试自动化平台实现，重点覆盖你手册里的业务流程：案例、接口、版本查询、智能体执行、DevOps执行、517268总线分发、状态和结果查询。</p>
             <div class="cards" id="summaryCards"></div>
             <div class="block">
-                <h3>AI生成测试用例</h3>
-                <form id="aiCaseForm" class="form-grid">
-                    <input name="sysId" value="cjeh2" placeholder="sysId" required/>
-                    <input name="sysName" value="长江e号2" placeholder="sysName"/>
-                    <input name="funcNo" value="500.6" placeholder="funcNo" required/>
-                    <input name="moduleName" value="普通买入" placeholder="moduleName"/>
-                    <input name="scenario" value="交易买入成功" placeholder="scenario"/>
-                    <textarea name="businessGoal" placeholder="businessGoal" required>验证委托确认接口在标准交易场景下返回成功结果</textarea>
+                <h3>AI 生成测试用例（接口定义驱动）</h3>
+                <form id="aiGenerateForm" class="form-grid">
+                    <input name="apiName" value="下单接口" placeholder="apiName" required/>
+                    <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
+                    <select name="method">
+                        <option>POST</option>
+                        <option>GET</option>
+                        <option>PUT</option>
+                        <option>DELETE</option>
+                    </select>
+                    <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+                    <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
                     <div class="actions">
-                        <label class="checkbox-inline">
-                            <input name="autoSave" type="checkbox" checked/>
-                            自动保存到案例库
-                        </label>
+                        <button type="submit">AI生成测试用例</button>
+                        <button id="aiExecuteBtn" type="button">执行最新生成用例</button>
                     </div>
-                    <button type="submit">AI生成测试用例</button>
                 </form>
-                <div id="aiCaseMessage" class="message"></div>
-                <pre id="aiCaseOutput"></pre>
+                <div id="aiGenerateMessage" class="message"></div>
+                <pre id="aiGenerateOutput"></pre>
             </div>
             <div class="block">
                 <h3>一、总体架构</h3>
@@ -64,6 +65,15 @@
                                               +------------------+     +-----------------+
                                               | LLM Model Client |     | Task Execution  |
                                               +------------------+     +-----------------+</pre>
+                <h4>组件分析</h4>
+                <ul>
+                    <li>Frontend (UI)：输入接口文档/参数并触发生成与执行。</li>
+                    <li>API Controller：接收请求并转发到核心服务。</li>
+                    <li>Test Case Service：构造Prompt、调用LLM、解析并入库。</li>
+                    <li>Database：保存测试用例、任务与执行结果。</li>
+                    <li>LLM Model Client：对接大模型接口生成测试用例。</li>
+                    <li>Task Execution：执行生成用例并返回执行结果。</li>
+                </ul>
             </div>
             <div class="block">
                 <h3>项目元信息</h3>

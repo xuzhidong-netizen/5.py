@@ -208,6 +208,13 @@ docker pull ghcr.io/zaproxy/zaproxy:stable
 - `GET /api/web-runs`
 - `GET /api/web-runs/{run_id}`
 
+## Java 平台 AI 模块
+
+`java-platform` 中新增了接口定义驱动的 AI 用例生成与执行链：
+
+- `POST /api/test/generate`：输入接口定义，生成并入库测试用例
+- `POST /api/test/execute`：执行指定用例 ID 列表
+
 ## 默认演示数据
 
 首次启动时会自动写入：

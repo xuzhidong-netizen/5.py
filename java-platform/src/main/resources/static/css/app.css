@@ -115,8 +115,10 @@ body {
 }
 
 .form-grid input,
+.form-grid select,
 .form-grid textarea,
-.inline-form input {
+.inline-form input,
+.inline-form select {
     width: 100%;
     border: 1px solid #cbd5e1;
     border-radius: 8px;

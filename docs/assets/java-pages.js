@@ -10,7 +10,8 @@ const executionTableBody = document.querySelector("#executionTable tbody");
 
 const functionForm = document.getElementById("functionForm");
 const caseForm = document.getElementById("caseForm");
-const aiCaseForm = document.getElementById("aiCaseForm");
+const aiGenerateForm = document.getElementById("aiGenerateForm");
+const aiExecuteBtn = document.getElementById("aiExecuteBtn");
 const agentRunForm = document.getElementById("agentRunForm");
 const queryStatusForm = document.getElementById("queryStatusForm");
 const queryResultForm = document.getElementById("queryResultForm");
@@ -29,8 +30,8 @@ const caseMessage = document.getElementById("caseMessage");
 const versionResult = document.getElementById("versionResult");
 const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
-const aiCaseMessage = document.getElementById("aiCaseMessage");
-const aiCaseOutput = document.getElementById("aiCaseOutput");
+const aiGenerateMessage = document.getElementById("aiGenerateMessage");
+const aiGenerateOutput = document.getElementById("aiGenerateOutput");
 
 const defaultState = {
   nextFunctionId: 1001,
@@ -75,6 +76,7 @@ const defaultState = {
 };
 
 let state = loadState();
+let latestGeneratedTestCases = [];
 
 menu.addEventListener("click", (event) => {
   const button = event.target.closest("button");
@@ -303,7 +305,7 @@ function functionLookup() {
   }));
 }
 
-function nextAiCaseId() {
+function nextGeneratedCaseId() {
   const date = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   const base = `${String(date.getFullYear()).slice(2)}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
@@ -311,77 +313,94 @@ function nextAiCaseId() {
   return Number(`${base}${suffix}`);
 }
 
-function generateAiCase(data) {
-  const functionRef = state.functions.find((item) => item.sysId === data.sysId && item.funcNo === data.funcNo);
-  if (!functionRef) return fail("功能号不存在，请先在 T_AI_FUNCTION 中新增接口");
+function parseJsonArrayText(text, fieldName) {
+  try {
+    const value = JSON.parse(text);
+    if (!Array.isArray(value)) {
+      throw new Error(`${fieldName} 必须是JSON数组`);
+    }
+    return value;
+  } catch (error) {
+    throw new Error(`${fieldName} 解析失败：${error.message}`);
+  }
+}
 
-  const moduleName = data.moduleName || "AI自动生成模块";
-  const scenario = data.scenario || "标准交易场景";
-  const businessGoal = data.businessGoal || "校验接口功能返回结果";
-  const caseId = data.caseId ? Number(data.caseId) : nextAiCaseId();
-  const sysName = data.sysName || functionRef.sysName || "长江e号2";
-  const environment = data.environment || "50000";
-  const version = data.version || "latest";
+function generateApiTestCases(data) {
+  const requestParams = parseJsonArrayText(data.requestParams, "requestParams");
+  const responseParams = parseJsonArrayText(data.responseParams || "[]", "responseParams");
+  const prompt = `根据接口定义生成测试用例：apiName=${data.apiName}, apiPath=${data.apiPath}, method=${data.method}, requestParams=${JSON.stringify(requestParams)}, responseParams=${JSON.stringify(responseParams)}`;
 
-  const generatedCase = {
-    sysId: data.sysId,
-    sysName,
-    caseId,
-    caseName: `AI生成_${moduleName}_${scenario}_${functionRef.funcNo}`,
-    caseType: "正例",
-    runFlag: "1",
-    caseKvBase: JSON.stringify({
-      env: environment,
-      funcno: functionRef.funcNo,
-      funcName: functionRef.funcName,
-      requestMethod: functionRef.funcRequestMethod || "POST",
-      httpUrl: functionRef.funcHttpUrl || "",
-      businessGoal,
-      param: {
-        module: moduleName,
-        scenario
+  const buildRequestBody = (type) => {
+    const payload = {};
+    requestParams.forEach((item) => {
+      const key = item.name || "field";
+      if (type === "invalid") {
+        payload[key] = "";
+      } else if (item.example !== undefined && item.example !== null && String(item.example).trim()) {
+        payload[key] = item.example;
+      } else {
+        payload[key] = "sample";
       }
-    }),
-    caseKvDynamic: JSON.stringify({
-      i_resource: "0",
-      i_sysid: sysName,
-      i_sysver: version,
-      i_request_data: "aitest_devops_batch",
-      i_func_no: functionRef.funcNo
-    }),
-    caseCheckFunction: "517184",
-    caseRemark: `由AI策略自动生成，目标：${businessGoal}`,
-    funcNo: functionRef.funcNo,
-    funcName: functionRef.funcName,
-    funcType: functionRef.funcType,
-    subFuncType: functionRef.subFuncType,
-    moduleName
+    });
+    return JSON.stringify(payload);
   };
 
-  let saved = false;
-  let finalCase = generatedCase;
-  if (data.autoSave) {
-    const savedResult = submitCase(generatedCase);
-    if (savedResult.code !== 200) return savedResult;
-    finalCase = savedResult.data;
-    saved = true;
-  }
+  const base = [
+    {
+      caseName: `${data.apiName}_正常场景`,
+      caseType: "normal",
+      requestBody: buildRequestBody("normal"),
+      expectedResult: "接口返回成功",
+      checkRule: "status=200 且业务成功"
+    },
+    {
+      caseName: `${data.apiName}_边界场景`,
+      caseType: "boundary",
+      requestBody: buildRequestBody("boundary"),
+      expectedResult: "边界参数处理正确",
+      checkRule: "status=200 且字段边界合法"
+    },
+    {
+      caseName: `${data.apiName}_异常场景`,
+      caseType: "invalid",
+      requestBody: buildRequestBody("invalid"),
+      expectedResult: "错误码符合预期",
+      checkRule: "status=4xx/业务错误码符合定义"
+    }
+  ];
 
-  const generationPrompt = `根据输入生成接口测试正例，输出结构化caseKvBase/caseKvDynamic并保证可执行。输入：${JSON.stringify({
-    sysId: generatedCase.sysId,
-    funcNo: generatedCase.funcNo,
-    moduleName: generatedCase.moduleName,
-    scenario,
-    businessGoal,
-    environment
-  })}`;
+  latestGeneratedTestCases = base.map((item) => ({
+    caseId: nextGeneratedCaseId(),
+    apiName: data.apiName,
+    apiPath: data.apiPath,
+    method: data.method,
+    caseName: item.caseName,
+    caseType: item.caseType,
+    requestBody: item.requestBody,
+    expectedResult: item.expectedResult,
+    checkRule: item.checkRule,
+    status: "NEW",
+    source: "AI"
+  }));
 
-  return ok(saved ? "AI生成并保存成功" : "AI生成成功", {
-    saved,
+  return {
     model: "RuleBased-LLM-Adapter",
-    generationPrompt,
-    generatedCase: finalCase
-  });
+    prompt,
+    generatedCases: latestGeneratedTestCases
+  };
+}
+
+function executeGeneratedTestCases() {
+  if (latestGeneratedTestCases.length === 0) {
+    return fail("请先生成测试用例");
+  }
+  return latestGeneratedTestCases.map((item) => ({
+    caseId: item.caseId,
+    caseName: item.caseName,
+    status: item.requestBody && item.requestBody !== "{}" ? "PASSED" : "FAILED",
+    resultMessage: item.requestBody && item.requestBody !== "{}" ? "执行成功，已接入任务执行链" : "请求体为空，执行失败",
+    executedAt: nowText()
+  }));
 }
 
 function submitFunction(data) {
@@ -493,29 +512,24 @@ caseForm.addEventListener("submit", (event) => {
   output(result);
 });
 
-aiCaseForm.addEventListener("submit", (event) => {
+aiGenerateForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const data = formToJson(aiCaseForm);
-  data.autoSave = Boolean(new FormData(aiCaseForm).get("autoSave"));
-  const result = generateAiCase(data);
-  aiCaseOutput.textContent = JSON.stringify(result, null, 2);
-  aiCaseMessage.textContent = result.msg;
-  const generated = result.data?.generatedCase;
-  if (generated) {
-    const setValue = (name, value) => {
-      const element = caseForm.querySelector(`[name="${name}"]`);
-      if (element && value !== undefined && value !== null) {
-        element.value = String(value);
-      }
-    };
-    setValue("sysId", generated.sysId);
-    setValue("sysName", generated.sysName);
-    setValue("caseId", generated.caseId);
-    setValue("caseName", generated.caseName);
-    setValue("funcNo", generated.funcNo);
-    setValue("moduleName", generated.moduleName);
-    setValue("caseKvBase", generated.caseKvBase);
-    setValue("caseKvDynamic", generated.caseKvDynamic);
+  try {
+    const result = generateApiTestCases(formToJson(aiGenerateForm));
+    aiGenerateOutput.textContent = JSON.stringify(result, null, 2);
+    aiGenerateMessage.textContent = `生成成功，共 ${result.generatedCases.length} 条测试用例`;
+  } catch (error) {
+    aiGenerateMessage.textContent = `AI生成失败：${error.message}`;
+  }
+});
+
+aiExecuteBtn.addEventListener("click", () => {
+  const result = executeGeneratedTestCases();
+  aiGenerateOutput.textContent = JSON.stringify(result, null, 2);
+  if (Array.isArray(result)) {
+    aiGenerateMessage.textContent = `执行完成，共 ${result.length} 条结果`;
+  } else {
+    aiGenerateMessage.textContent = result.msg;
   }
 });
 
@@ -583,5 +597,5 @@ refreshAll();
 versionResult.textContent = JSON.stringify(state.versions, null, 2);
 functionLookupResult.textContent = JSON.stringify(functionLookup(), null, 2);
 executionOutput.textContent = "Pages 演示模式已就绪";
-aiCaseOutput.textContent = "点击上方“AI生成测试用例”开始生成";
+aiGenerateOutput.textContent = "输入接口定义后点击“AI生成测试用例”";
 setInterval(refreshAll, 5000);
