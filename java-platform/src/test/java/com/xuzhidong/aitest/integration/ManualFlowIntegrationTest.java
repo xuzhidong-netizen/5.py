@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -183,5 +184,65 @@ class ManualFlowIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].status").exists())
             .andExpect(jsonPath("$[0].caseId").value(caseId));
+    }
+
+    @Test
+    void shouldSupportNewAiTestEndpoints() throws Exception {
+        String apiDefinition = """
+            {
+              "apiName": "资产查询接口",
+              "apiPath": "/api/asset/query",
+              "method": "POST",
+              "requestParams": [
+                {"name":"fundAccount","type":"string","required":true,"description":"资金账号","example":"A10001"},
+                {"name":"pageNo","type":"int","required":false,"description":"页码","example":"1"}
+              ],
+              "responseParams": [
+                {"name":"total","type":"int","required":true,"description":"总数","example":"10"},
+                {"name":"records","type":"array","required":true,"description":"资产列表","example":"[]"}
+              ]
+            }
+            """;
+
+        mockMvc.perform(post("/api/generate-docs")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(apiDefinition))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apiName").value("资产查询接口"))
+            .andExpect(jsonPath("$.markdown").exists())
+            .andExpect(jsonPath("$.openApi.openapi").value("3.0.3"));
+
+        MvcResult caseResult = mockMvc.perform(post("/api/generate-cases")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(apiDefinition))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].apiName").value("资产查询接口"))
+            .andReturn();
+
+        JsonNode generated = objectMapper.readTree(caseResult.getResponse().getContentAsString());
+        long firstCaseId = generated.get(0).path("caseId").asLong();
+        assertTrue(firstCaseId > 0);
+
+        MvcResult executeResult = mockMvc.perform(post("/api/execute-cases")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"caseIds":[%s]}
+                    """.formatted(firstCaseId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.runId").exists())
+            .andExpect(jsonPath("$.results[0].caseId").value(firstCaseId))
+            .andReturn();
+
+        String runId = objectMapper.readTree(executeResult.getResponse().getContentAsString()).path("runId").asText();
+        assertTrue(!runId.isBlank());
+
+        mockMvc.perform(get("/api/results").param("runId", runId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].runId").value(runId))
+            .andExpect(jsonPath("$[0].results[0].caseId").value(firstCaseId));
+
+        mockMvc.perform(get("/api/results"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].runId").exists());
     }
 }

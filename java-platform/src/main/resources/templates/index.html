@@ -12,48 +12,154 @@
         <h1>接口测试平台</h1>
         <p class="subtitle">Java / Spring Boot</p>
         <nav class="menu" id="menu">
-            <button data-panel="overview" class="active">一、项目概述</button>
-            <button data-panel="environment">二、环境配置</button>
-            <button data-panel="deploy">三、部署流程</button>
-            <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
-            <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
-            <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
-            <button data-panel="execution">四.5 执行流程中心</button>
-            <button data-panel="logs">五、日志管理</button>
-            <button data-panel="urls">六、常用网址</button>
-            <button data-panel="troubleshooting">七、故障处理</button>
-            <button data-panel="security">八、安全措施</button>
-            <button data-panel="maintenance">九、维护计划</button>
-            <button data-panel="appendix">十、附录</button>
+            <div class="menu-group">
+                <div class="menu-group-title">Ai测试</div>
+                <div class="menu-group-items">
+                    <button data-panel="aiDocs" class="active">接口文档生成</button>
+                    <button data-panel="aiCases">测试用例生成</button>
+                    <button data-panel="aiExecute">用例执行</button>
+                    <button data-panel="aiResults">执行结果展示</button>
+                </div>
+            </div>
+            <details class="menu-group menu-group-other" open>
+                <summary>其他功能</summary>
+                <div class="menu-group-items">
+                    <button data-panel="overview">一、项目概述</button>
+                    <button data-panel="environment">二、环境配置</button>
+                    <button data-panel="deploy">三、部署流程</button>
+                    <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
+                    <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
+                    <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
+                    <button data-panel="execution">四.5 执行流程中心</button>
+                    <button data-panel="logs">五、日志管理</button>
+                    <button data-panel="urls">六、常用网址</button>
+                    <button data-panel="troubleshooting">七、故障处理</button>
+                    <button data-panel="security">八、安全措施</button>
+                    <button data-panel="maintenance">九、维护计划</button>
+                    <button data-panel="appendix">十、附录</button>
+                </div>
+            </details>
         </nav>
     </aside>
 
     <main class="content">
-        <section id="overview" class="panel active">
+        <section id="aiDocs" class="panel active">
+            <h2>Ai测试 · 接口文档生成</h2>
+            <form id="aiDocForm" class="form-grid">
+                <input name="apiName" value="下单接口" placeholder="apiName" required/>
+                <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
+                <select name="method">
+                    <option>POST</option>
+                    <option>GET</option>
+                    <option>PUT</option>
+                    <option>DELETE</option>
+                </select>
+                <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+                <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
+                <button type="submit">生成接口文档</button>
+            </form>
+            <div id="aiDocMessage" class="message"></div>
+            <div class="query-grid">
+                <div>
+                    <h3>Markdown 文档</h3>
+                    <pre id="aiDocMarkdownOutput"></pre>
+                </div>
+                <div>
+                    <h3>OpenAPI JSON</h3>
+                    <pre id="aiDocOpenApiOutput"></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="aiCases" class="panel">
+            <h2>Ai测试 · 测试用例生成</h2>
+            <form id="aiCaseForm" class="form-grid">
+                <input name="apiName" value="下单接口" placeholder="apiName" required/>
+                <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
+                <select name="method">
+                    <option>POST</option>
+                    <option>GET</option>
+                    <option>PUT</option>
+                    <option>DELETE</option>
+                </select>
+                <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+                <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
+                <button type="submit">生成测试用例</button>
+            </form>
+            <div id="aiCaseMessage" class="message"></div>
+            <pre id="aiCaseOutput"></pre>
+        </section>
+
+        <section id="aiExecute" class="panel">
+            <h2>Ai测试 · 用例执行</h2>
+            <div class="actions">
+                <button id="aiSelectAllCasesBtn" type="button">全选/取消全选</button>
+                <button id="aiExecuteCasesBtn" type="button">执行选中用例</button>
+            </div>
+            <table class="table" id="aiCaseTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>caseId</th>
+                    <th>caseName</th>
+                    <th>caseType</th>
+                    <th>status</th>
+                    <th>source</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiExecuteMessage" class="message"></div>
+            <pre id="aiExecuteOutput"></pre>
+        </section>
+
+        <section id="aiResults" class="panel">
+            <h2>Ai测试 · 执行结果展示</h2>
+            <form id="aiResultQueryForm" class="inline-form">
+                <input name="runId" placeholder="runId（可选）"/>
+                <button type="submit">按 runId 查询</button>
+                <button id="aiLoadLatestResultsBtn" type="button">查询最新结果</button>
+            </form>
+            <div class="query-grid">
+                <div>
+                    <h3>运行批次</h3>
+                    <table class="table" id="aiRunTable">
+                        <thead>
+                        <tr>
+                            <th>runId</th>
+                            <th>status</th>
+                            <th>total</th>
+                            <th>passed</th>
+                            <th>failed</th>
+                            <th>executedAt</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>用例结果</h3>
+                    <table class="table" id="aiResultTable">
+                        <thead>
+                        <tr>
+                            <th>caseId</th>
+                            <th>caseName</th>
+                            <th>status</th>
+                            <th>message</th>
+                            <th>executedAt</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <pre id="aiResultOutput"></pre>
+        </section>
+
+        <section id="overview" class="panel">
             <h2>项目概述</h2>
             <p>这是一个经典的接口测试自动化平台实现，重点覆盖你手册里的业务流程：案例、接口、版本查询、智能体执行、DevOps执行、517268总线分发、状态和结果查询。</p>
             <div class="cards" id="summaryCards"></div>
-            <div class="block">
-                <h3>AI 生成测试用例（接口定义驱动）</h3>
-                <form id="aiGenerateForm" class="form-grid">
-                    <input name="apiName" value="下单接口" placeholder="apiName" required/>
-                    <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
-                    <select name="method">
-                        <option>POST</option>
-                        <option>GET</option>
-                        <option>PUT</option>
-                        <option>DELETE</option>
-                    </select>
-                    <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
-                    <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
-                    <div class="actions">
-                        <button type="submit">AI生成测试用例</button>
-                        <button id="aiExecuteBtn" type="button">执行最新生成用例</button>
-                    </div>
-                </form>
-                <div id="aiGenerateMessage" class="message"></div>
-                <pre id="aiGenerateOutput"></pre>
-            </div>
             <div class="block">
                 <h3>一、总体架构</h3>
                 <h4>架构图</h4>

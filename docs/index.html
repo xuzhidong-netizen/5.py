@@ -12,51 +12,156 @@
     <h1>5.py 接口平台</h1>
     <p class="subtitle">GitHub Pages 静态演示版</p>
     <nav class="menu" id="menu">
-      <button data-panel="overview" class="active">一、项目概述</button>
-      <button data-panel="environment">二、环境配置</button>
-      <button data-panel="deploy">三、部署流程</button>
-      <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
-      <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
-      <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
-      <button data-panel="execution">四.5 执行流程中心</button>
-      <button data-panel="logs">五、日志管理</button>
-      <button data-panel="urls">六、常用网址</button>
-      <button data-panel="troubleshooting">七、故障处理</button>
-      <button data-panel="security">八、安全措施</button>
-      <button data-panel="maintenance">九、维护计划</button>
-      <button data-panel="appendix">十、附录</button>
+      <div class="menu-group">
+        <div class="menu-group-title">Ai测试</div>
+        <div class="menu-group-items">
+          <button data-panel="aiDocs" class="active">接口文档生成</button>
+          <button data-panel="aiCases">测试用例生成</button>
+          <button data-panel="aiExecute">用例执行</button>
+          <button data-panel="aiResults">执行结果展示</button>
+        </div>
+      </div>
+      <details class="menu-group menu-group-other" open>
+        <summary>其他功能</summary>
+        <div class="menu-group-items">
+          <button data-panel="overview">一、项目概述</button>
+          <button data-panel="environment">二、环境配置</button>
+          <button data-panel="deploy">三、部署流程</button>
+          <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
+          <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
+          <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
+          <button data-panel="execution">四.5 执行流程中心</button>
+          <button data-panel="logs">五、日志管理</button>
+          <button data-panel="urls">六、常用网址</button>
+          <button data-panel="troubleshooting">七、故障处理</button>
+          <button data-panel="security">八、安全措施</button>
+          <button data-panel="maintenance">九、维护计划</button>
+          <button data-panel="appendix">十、附录</button>
+        </div>
+      </details>
     </nav>
   </aside>
 
   <main class="content">
-    <section id="overview" class="panel active">
+    <section id="aiDocs" class="panel active">
+      <h2>Ai测试 · 接口文档生成</h2>
+      <form id="aiDocForm" class="form-grid">
+        <input name="apiName" value="下单接口" placeholder="apiName" required>
+        <input name="apiPath" value="/api/order/create" placeholder="apiPath" required>
+        <select name="method">
+          <option>POST</option>
+          <option>GET</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+        </select>
+        <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+        <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
+        <button type="submit">生成接口文档</button>
+      </form>
+      <div id="aiDocMessage" class="message"></div>
+      <div class="query-grid">
+        <div>
+          <h3>Markdown 文档</h3>
+          <pre id="aiDocMarkdownOutput"></pre>
+        </div>
+        <div>
+          <h3>OpenAPI JSON</h3>
+          <pre id="aiDocOpenApiOutput"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="aiCases" class="panel">
+      <h2>Ai测试 · 测试用例生成</h2>
+      <form id="aiCaseForm" class="form-grid">
+        <input name="apiName" value="下单接口" placeholder="apiName" required>
+        <input name="apiPath" value="/api/order/create" placeholder="apiPath" required>
+        <select name="method">
+          <option>POST</option>
+          <option>GET</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+        </select>
+        <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+        <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
+        <button type="submit">生成测试用例</button>
+      </form>
+      <div id="aiCaseMessage" class="message"></div>
+      <pre id="aiCaseOutput"></pre>
+    </section>
+
+    <section id="aiExecute" class="panel">
+      <h2>Ai测试 · 用例执行</h2>
+      <div class="actions">
+        <button id="aiSelectAllCasesBtn" type="button">全选/取消全选</button>
+        <button id="aiExecuteCasesBtn" type="button">执行选中用例</button>
+      </div>
+      <table class="table" id="aiCaseTable">
+        <thead>
+        <tr>
+          <th>选择</th>
+          <th>caseId</th>
+          <th>caseName</th>
+          <th>caseType</th>
+          <th>status</th>
+          <th>source</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="aiExecuteMessage" class="message"></div>
+      <pre id="aiExecuteOutput"></pre>
+    </section>
+
+    <section id="aiResults" class="panel">
+      <h2>Ai测试 · 执行结果展示</h2>
+      <form id="aiResultQueryForm" class="inline-form">
+        <input name="runId" placeholder="runId（可选）">
+        <button type="submit">按 runId 查询</button>
+        <button id="aiLoadLatestResultsBtn" type="button">查询最新结果</button>
+      </form>
+      <div class="query-grid">
+        <div>
+          <h3>运行批次</h3>
+          <table class="table" id="aiRunTable">
+            <thead>
+            <tr>
+              <th>runId</th>
+              <th>status</th>
+              <th>total</th>
+              <th>passed</th>
+              <th>failed</th>
+              <th>executedAt</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>用例结果</h3>
+          <table class="table" id="aiResultTable">
+            <thead>
+            <tr>
+              <th>caseId</th>
+              <th>caseName</th>
+              <th>status</th>
+              <th>message</th>
+              <th>executedAt</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <pre id="aiResultOutput"></pre>
+    </section>
+
+    <section id="overview" class="panel">
       <h2>项目概述</h2>
       <p>当前页面是 GitHub Pages 演示环境，独立展示 5.py 的经典接口自动化测试平台。</p>
       <div class="cards" id="summaryCards"></div>
       <div class="block">
-        <h3>AI 生成测试用例（接口定义驱动）</h3>
-        <form id="aiGenerateForm" class="form-grid">
-          <input name="apiName" value="下单接口" placeholder="apiName" required>
-          <input name="apiPath" value="/api/order/create" placeholder="apiPath" required>
-          <select name="method">
-            <option>POST</option>
-            <option>GET</option>
-            <option>PUT</option>
-            <option>DELETE</option>
-          </select>
-          <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
-          <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
-          <div class="actions">
-            <button type="submit">AI生成测试用例</button>
-            <button id="aiExecuteBtn" type="button">执行最新生成用例</button>
-          </div>
-        </form>
-        <div id="aiGenerateMessage" class="message"></div>
-        <pre id="aiGenerateOutput"></pre>
-      </div>
-      <div class="block">
         <h3>一、总体架构</h3>
-        <h4>架构图</h4>
 <pre class="architecture">+-------------------+        +-----------------+        +--------------------+       +-------------------------------+
 | Frontend (UI)     | <----> | API Controller  | <----> | Test Case Service  | <----> | Database (MySQL/PostgreSQL)  |
 +-------------------+        +-----------------+        +--------------------+       +-------------------------------+
@@ -65,20 +170,11 @@
                                               +------------------+     +-----------------+
                                               | LLM Model Client |     | Task Execution  |
                                               +------------------+     +-----------------+</pre>
-        <h4>组件分析</h4>
-        <ul>
-          <li>Frontend (UI)：输入接口文档/参数并触发生成与执行。</li>
-          <li>API Controller：接收请求并转发到核心服务。</li>
-          <li>Test Case Service：构造Prompt、调用LLM、解析并入库。</li>
-          <li>Database：保存测试用例、任务与执行结果。</li>
-          <li>LLM Model Client：对接大模型接口生成测试用例。</li>
-          <li>Task Execution：执行生成用例并返回执行结果。</li>
-        </ul>
       </div>
       <div class="block">
         <h3>线上地址</h3>
         <p><a href="https://xuzhidong-netizen.github.io/5.py/" target="_blank">https://xuzhidong-netizen.github.io/5.py/</a></p>
-        <p>Java 运行版请使用仓库中的 <code>java-platform</code> 启动 Spring Boot 服务。</p>
+        <p>该页为静态演示版，Java 运行版请在仓库 `java-platform` 模块启动。</p>
       </div>
     </section>
 
@@ -275,14 +371,21 @@ java -jar target/java-api-test-platform-1.0.0.jar</pre>
     <section id="logs" class="panel">
       <h2>日志管理</h2>
       <div class="block">
-<pre>50000环境：
-cd /home/projects && tail -f nohup.out
-cd /home/cjas22000 && tail -f appserver.log</pre>
+        <h3>50000 环境日志指令</h3>
+<pre>cd /home/projects
+tail -f nohup.out
+
+cd /home/cjas22000
+tail -f appserver.log
+tail -f nohup.log</pre>
       </div>
       <div class="block">
-<pre>30000环境：
-cd /data/cjas22000 && tail -f appserver.log</pre>
+        <h3>30000 环境日志指令</h3>
+<pre>cd /data/cjas22000
+tail -f appserver.log
+tail -f nohup.log</pre>
       </div>
+      <p class="warn">安全提示：生产账号密码不要写入平台页面，请使用安全配置中心注入。</p>
     </section>
 
     <section id="urls" class="panel">
@@ -297,34 +400,37 @@ cd /data/cjas22000 && tail -f appserver.log</pre>
     <section id="troubleshooting" class="panel">
       <h2>故障处理</h2>
       <ul>
-        <li>接口新增失败：检查 funcNo + sysId 是否重复。</li>
-        <li>案例新增失败：确认功能号已先在接口表中创建。</li>
-        <li>hisId 查询失败：确认任务是否存在。</li>
+        <li>接口新增失败：检查 funcNo + sysId 唯一性。</li>
+        <li>案例新增失败：检查 caseId + sysId 唯一性。</li>
+        <li>hisId 查询失败：确认执行任务是否已创建并完成。</li>
+        <li>紧急恢复流程：停止流量 -> 切换备用版本 -> 回滚上一个稳定包。</li>
       </ul>
     </section>
 
     <section id="security" class="panel">
       <h2>安全措施</h2>
       <ul>
-        <li>敏感数据脱敏存储。</li>
-        <li>建议接入统一身份认证。</li>
-        <li>限制来源网段和接口权限。</li>
+        <li>数据加密：敏感字段脱敏存储。</li>
+        <li>访问控制：建议接入统一认证中心。</li>
+        <li>防火墙设置：限制来源网段。</li>
+        <li>安全审计：定期导出执行日志与异常日志。</li>
       </ul>
     </section>
 
     <section id="maintenance" class="panel">
       <h2>维护计划</h2>
       <ul>
-        <li>每周依赖升级与回归测试。</li>
-        <li>每月压测与容量评估。</li>
-        <li>每季度容灾演练。</li>
+        <li>每周更新：依赖补丁、脚本优化。</li>
+        <li>每月优化：执行效率与历史归档。</li>
+        <li>每季度演练：故障切换与恢复演练。</li>
       </ul>
     </section>
 
     <section id="appendix" class="panel">
       <h2>附录</h2>
       <ul>
-        <li>仓库地址：<a href="https://github.com/xuzhidong-netizen/5.py" target="_blank">https://github.com/xuzhidong-netizen/5.py</a></li>
+        <li>接口文档：请在企业内网文档系统维护。</li>
+        <li>技术支持：平台运维群 + 邮箱工单。</li>
       </ul>
     </section>
   </main>

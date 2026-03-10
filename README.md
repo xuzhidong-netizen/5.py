@@ -212,6 +212,10 @@ docker pull ghcr.io/zaproxy/zaproxy:stable
 
 `java-platform` 中新增了接口定义驱动的 AI 用例生成与执行链：
 
+- `POST /api/generate-docs`：接口文档生成（Markdown + OpenAPI）
+- `POST /api/generate-cases`：生成并入库测试用例
+- `POST /api/execute-cases`：执行指定用例并返回 `runId`
+- `GET /api/results?runId=...`：查询执行结果（可按 `runId` 过滤）
 - `POST /api/test/generate`：输入接口定义，生成并入库测试用例
 - `POST /api/test/execute`：执行指定用例 ID 列表
 

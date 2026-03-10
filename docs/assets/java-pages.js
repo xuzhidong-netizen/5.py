@@ -1,4 +1,4 @@
-const storageKey = "java-pages-platform-state-v1";
+const storageKey = "java-pages-platform-state-v2";
 
 const menu = document.getElementById("menu");
 const panels = Array.from(document.querySelectorAll(".panel"));
@@ -10,8 +10,6 @@ const executionTableBody = document.querySelector("#executionTable tbody");
 
 const functionForm = document.getElementById("functionForm");
 const caseForm = document.getElementById("caseForm");
-const aiGenerateForm = document.getElementById("aiGenerateForm");
-const aiExecuteBtn = document.getElementById("aiExecuteBtn");
 const agentRunForm = document.getElementById("agentRunForm");
 const queryStatusForm = document.getElementById("queryStatusForm");
 const queryResultForm = document.getElementById("queryResultForm");
@@ -30,12 +28,32 @@ const caseMessage = document.getElementById("caseMessage");
 const versionResult = document.getElementById("versionResult");
 const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
-const aiGenerateMessage = document.getElementById("aiGenerateMessage");
-const aiGenerateOutput = document.getElementById("aiGenerateOutput");
+
+const aiDocForm = document.getElementById("aiDocForm");
+const aiDocMessage = document.getElementById("aiDocMessage");
+const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
+const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
+
+const aiCaseForm = document.getElementById("aiCaseForm");
+const aiCaseMessage = document.getElementById("aiCaseMessage");
+const aiCaseOutput = document.getElementById("aiCaseOutput");
+const aiCaseTableBody = document.querySelector("#aiCaseTable tbody");
+
+const aiSelectAllCasesBtn = document.getElementById("aiSelectAllCasesBtn");
+const aiExecuteCasesBtn = document.getElementById("aiExecuteCasesBtn");
+const aiExecuteMessage = document.getElementById("aiExecuteMessage");
+const aiExecuteOutput = document.getElementById("aiExecuteOutput");
+
+const aiResultQueryForm = document.getElementById("aiResultQueryForm");
+const aiLoadLatestResultsBtn = document.getElementById("aiLoadLatestResultsBtn");
+const aiRunTableBody = document.querySelector("#aiRunTable tbody");
+const aiResultTableBody = document.querySelector("#aiResultTable tbody");
+const aiResultOutput = document.getElementById("aiResultOutput");
 
 const defaultState = {
   nextFunctionId: 1001,
   nextCaseRecordId: 100001,
+  nextAiCaseId: 200001,
   functions: [
     {
       id: 1001,
@@ -72,17 +90,18 @@ const defaultState = {
     {version_name: "长江e号", version_number: "11.9.0", func_no_string: "500.6,517508", sys_id: "cjeh2", sys_name: "长江e号2", run_flag: "1"}
   ],
   executions: [],
+  aiRuns: [],
   authorization: ""
 };
 
 let state = loadState();
-let latestGeneratedTestCases = [];
+let latestGeneratedCases = [];
 
 menu.addEventListener("click", (event) => {
-  const button = event.target.closest("button");
+  const button = event.target.closest("button[data-panel]");
   if (!button) return;
   const panelId = button.dataset.panel;
-  menu.querySelectorAll("button").forEach((item) => item.classList.remove("active"));
+  menu.querySelectorAll("button[data-panel]").forEach((item) => item.classList.remove("active"));
   button.classList.add("active");
   panels.forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
 });
@@ -111,6 +130,232 @@ function formToJson(form) {
     data[key] = value;
   });
   return data;
+}
+
+function parseJsonArray(text, fieldName) {
+  try {
+    const value = JSON.parse(text);
+    if (!Array.isArray(value)) {
+      throw new Error(`${fieldName} 必须是JSON数组`);
+    }
+    return value;
+  } catch (error) {
+    throw new Error(`${fieldName} 解析失败：${error.message}`);
+  }
+}
+
+function normalizeMethod(method) {
+  return String(method || "POST").toUpperCase();
+}
+
+function mapType(source) {
+  switch (String(source || "string").toLowerCase()) {
+    case "int":
+    case "integer":
+    case "long":
+      return "integer";
+    case "double":
+    case "float":
+    case "decimal":
+    case "number":
+      return "number";
+    case "boolean":
+    case "bool":
+      return "boolean";
+    case "array":
+    case "list":
+      return "array";
+    case "object":
+    case "map":
+      return "object";
+    default:
+      return "string";
+  }
+}
+
+function buildApiDefinition(form) {
+  const data = formToJson(form);
+  return {
+    apiName: data.apiName,
+    apiPath: data.apiPath,
+    method: data.method,
+    requestParams: parseJsonArray(data.requestParams, "requestParams"),
+    responseParams: parseJsonArray(data.responseParams || "[]", "responseParams")
+  };
+}
+
+function generateDocs(definition) {
+  const reqLines = definition.requestParams.length === 0
+    ? "- 无"
+    : definition.requestParams.map((item) => `- \`${item.name || "field"}\` (${item.type || "string"}), required=${Boolean(item.required)}, desc=${item.description || "-"}`).join("\n");
+  const rspLines = definition.responseParams.length === 0
+    ? "- 无"
+    : definition.responseParams.map((item) => `- \`${item.name || "field"}\` (${item.type || "string"}), desc=${item.description || "-"}`).join("\n");
+
+  const markdown = [
+    `## ${definition.apiName}`,
+    `- 路径: \`${definition.apiPath}\``,
+    `- 方法: \`${normalizeMethod(definition.method)}\``,
+    "",
+    "### 请求参数",
+    reqLines,
+    "",
+    "### 响应参数",
+    rspLines
+  ].join("\n");
+
+  const toSchema = (params) => {
+    const properties = {};
+    const required = [];
+    params.forEach((item) => {
+      const name = item.name || "field";
+      properties[name] = {
+        type: mapType(item.type),
+        description: item.description || "",
+        example: item.example || ""
+      };
+      if (item.required) required.push(name);
+    });
+    const schema = {type: "object", properties};
+    if (required.length > 0) schema.required = required;
+    return schema;
+  };
+
+  return {
+    apiName: definition.apiName,
+    apiPath: definition.apiPath,
+    method: normalizeMethod(definition.method),
+    generatedAt: nowText(),
+    markdown,
+    openApi: {
+      openapi: "3.0.3",
+      info: {title: definition.apiName, version: "1.0.0"},
+      paths: {
+        [definition.apiPath]: {
+          [normalizeMethod(definition.method).toLowerCase()]: {
+            summary: definition.apiName,
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {schema: toSchema(definition.requestParams)}
+              }
+            },
+            responses: {
+              200: {
+                description: "success",
+                content: {
+                  "application/json": {schema: toSchema(definition.responseParams)}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+function buildRequestBody(params, invalid = false) {
+  const payload = {};
+  params.forEach((item) => {
+    const key = item.name || "field";
+    if (invalid) {
+      payload[key] = "";
+      return;
+    }
+    if (item.example !== undefined && item.example !== null && String(item.example).trim()) {
+      payload[key] = item.example;
+      return;
+    }
+    payload[key] = "sample";
+  });
+  return JSON.stringify(payload);
+}
+
+function generateCases(definition) {
+  const base = [
+    {
+      caseType: "normal",
+      caseName: `${definition.apiName}_正常场景`,
+      expectedResult: "接口返回成功",
+      checkRule: "status=200 且业务成功",
+      requestBody: buildRequestBody(definition.requestParams, false)
+    },
+    {
+      caseType: "boundary",
+      caseName: `${definition.apiName}_边界场景`,
+      expectedResult: "边界参数处理正确",
+      checkRule: "status=200 且字段边界合法",
+      requestBody: buildRequestBody(definition.requestParams, false)
+    },
+    {
+      caseType: "invalid",
+      caseName: `${definition.apiName}_异常场景`,
+      expectedResult: "错误码符合预期",
+      checkRule: "status=4xx/业务错误码符合定义",
+      requestBody: buildRequestBody(definition.requestParams, true)
+    }
+  ];
+
+  return base.map((item) => {
+    state.nextAiCaseId += 1;
+    return {
+      caseId: state.nextAiCaseId,
+      apiName: definition.apiName,
+      apiPath: definition.apiPath,
+      method: normalizeMethod(definition.method),
+      caseName: item.caseName,
+      caseType: item.caseType,
+      requestBody: item.requestBody,
+      expectedResult: item.expectedResult,
+      checkRule: item.checkRule,
+      status: "NEW",
+      source: "AI"
+    };
+  });
+}
+
+function generateRunId() {
+  const date = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const base = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  const suffix = String(Math.floor(Math.random() * 900000 + 100000));
+  return `${base}${suffix}`;
+}
+
+function executeCases(selectedIds) {
+  const caseSet = new Set(selectedIds.map((item) => Number(item)));
+  const selectedCases = latestGeneratedCases.filter((item) => caseSet.has(Number(item.caseId)));
+  if (selectedCases.length === 0) {
+    throw new Error("未找到可执行测试用例");
+  }
+  const results = selectedCases.map((item) => ({
+    caseId: item.caseId,
+    caseName: item.caseName,
+    status: item.caseType === "invalid" ? "FAILED" : "PASSED",
+    resultMessage: item.caseType === "invalid" ? "参数非法，命中异常场景" : "执行成功，已接入任务执行链",
+    executedAt: nowText()
+  }));
+  const passed = results.filter((item) => item.status === "PASSED").length;
+  const run = {
+    runId: generateRunId(),
+    status: passed === results.length ? "PASSED" : "FAILED",
+    total: results.length,
+    passed,
+    failed: results.length - passed,
+    executedAt: nowText(),
+    results
+  };
+  state.aiRuns.unshift(run);
+  persist();
+  return run;
+}
+
+function queryAiResults(runId) {
+  if (runId && String(runId).trim()) {
+    return state.aiRuns.filter((item) => item.runId === String(runId).trim());
+  }
+  return state.aiRuns;
 }
 
 function buildSummary() {
@@ -176,6 +421,44 @@ function renderExecutions(executions) {
       <td>${item.passRate || "-"}</td>
       <td>${item.beginTime || "-"}</td>
       <td>${item.endTime || "-"}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAiCases(cases) {
+  aiCaseTableBody.innerHTML = cases.map((item) => `
+    <tr>
+      <td><input type="checkbox" class="ai-case-checkbox" value="${item.caseId}" checked></td>
+      <td>${item.caseId}</td>
+      <td>${item.caseName}</td>
+      <td>${item.caseType}</td>
+      <td>${item.status}</td>
+      <td>${item.source}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAiResults(runs) {
+  aiRunTableBody.innerHTML = runs.map((item) => `
+    <tr>
+      <td>${item.runId}</td>
+      <td>${item.status}</td>
+      <td>${item.total}</td>
+      <td>${item.passed}</td>
+      <td>${item.failed}</td>
+      <td>${item.executedAt}</td>
+    </tr>
+  `).join("");
+
+  const selected = runs[0];
+  const details = selected ? selected.results : [];
+  aiResultTableBody.innerHTML = details.map((item) => `
+    <tr>
+      <td>${item.caseId}</td>
+      <td>${item.caseName}</td>
+      <td>${item.status}</td>
+      <td>${item.resultMessage}</td>
+      <td>${item.executedAt}</td>
     </tr>
   `).join("");
 }
@@ -305,104 +588,6 @@ function functionLookup() {
   }));
 }
 
-function nextGeneratedCaseId() {
-  const date = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const base = `${String(date.getFullYear()).slice(2)}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  const suffix = String(Math.floor(Math.random() * 900 + 100));
-  return Number(`${base}${suffix}`);
-}
-
-function parseJsonArrayText(text, fieldName) {
-  try {
-    const value = JSON.parse(text);
-    if (!Array.isArray(value)) {
-      throw new Error(`${fieldName} 必须是JSON数组`);
-    }
-    return value;
-  } catch (error) {
-    throw new Error(`${fieldName} 解析失败：${error.message}`);
-  }
-}
-
-function generateApiTestCases(data) {
-  const requestParams = parseJsonArrayText(data.requestParams, "requestParams");
-  const responseParams = parseJsonArrayText(data.responseParams || "[]", "responseParams");
-  const prompt = `根据接口定义生成测试用例：apiName=${data.apiName}, apiPath=${data.apiPath}, method=${data.method}, requestParams=${JSON.stringify(requestParams)}, responseParams=${JSON.stringify(responseParams)}`;
-
-  const buildRequestBody = (type) => {
-    const payload = {};
-    requestParams.forEach((item) => {
-      const key = item.name || "field";
-      if (type === "invalid") {
-        payload[key] = "";
-      } else if (item.example !== undefined && item.example !== null && String(item.example).trim()) {
-        payload[key] = item.example;
-      } else {
-        payload[key] = "sample";
-      }
-    });
-    return JSON.stringify(payload);
-  };
-
-  const base = [
-    {
-      caseName: `${data.apiName}_正常场景`,
-      caseType: "normal",
-      requestBody: buildRequestBody("normal"),
-      expectedResult: "接口返回成功",
-      checkRule: "status=200 且业务成功"
-    },
-    {
-      caseName: `${data.apiName}_边界场景`,
-      caseType: "boundary",
-      requestBody: buildRequestBody("boundary"),
-      expectedResult: "边界参数处理正确",
-      checkRule: "status=200 且字段边界合法"
-    },
-    {
-      caseName: `${data.apiName}_异常场景`,
-      caseType: "invalid",
-      requestBody: buildRequestBody("invalid"),
-      expectedResult: "错误码符合预期",
-      checkRule: "status=4xx/业务错误码符合定义"
-    }
-  ];
-
-  latestGeneratedTestCases = base.map((item) => ({
-    caseId: nextGeneratedCaseId(),
-    apiName: data.apiName,
-    apiPath: data.apiPath,
-    method: data.method,
-    caseName: item.caseName,
-    caseType: item.caseType,
-    requestBody: item.requestBody,
-    expectedResult: item.expectedResult,
-    checkRule: item.checkRule,
-    status: "NEW",
-    source: "AI"
-  }));
-
-  return {
-    model: "RuleBased-LLM-Adapter",
-    prompt,
-    generatedCases: latestGeneratedTestCases
-  };
-}
-
-function executeGeneratedTestCases() {
-  if (latestGeneratedTestCases.length === 0) {
-    return fail("请先生成测试用例");
-  }
-  return latestGeneratedTestCases.map((item) => ({
-    caseId: item.caseId,
-    caseName: item.caseName,
-    status: item.requestBody && item.requestBody !== "{}" ? "PASSED" : "FAILED",
-    resultMessage: item.requestBody && item.requestBody !== "{}" ? "执行成功，已接入任务执行链" : "请求体为空，执行失败",
-    executedAt: nowText()
-  }));
-}
-
 function submitFunction(data) {
   const exists = state.functions.some((item) => item.sysId === data.sysId && item.funcNo === data.funcNo);
   if (exists) return fail("接口记录已存在,请重新检查");
@@ -512,25 +697,80 @@ caseForm.addEventListener("submit", (event) => {
   output(result);
 });
 
-aiGenerateForm.addEventListener("submit", (event) => {
+aiDocForm.addEventListener("submit", (event) => {
   event.preventDefault();
   try {
-    const result = generateApiTestCases(formToJson(aiGenerateForm));
-    aiGenerateOutput.textContent = JSON.stringify(result, null, 2);
-    aiGenerateMessage.textContent = `生成成功，共 ${result.generatedCases.length} 条测试用例`;
+    const definition = buildApiDefinition(aiDocForm);
+    const docs = generateDocs(definition);
+    aiDocMessage.textContent = "接口文档生成成功";
+    aiDocMarkdownOutput.textContent = docs.markdown;
+    aiDocOpenApiOutput.textContent = JSON.stringify(docs.openApi, null, 2);
   } catch (error) {
-    aiGenerateMessage.textContent = `AI生成失败：${error.message}`;
+    aiDocMessage.textContent = `接口文档生成失败：${error.message}`;
   }
 });
 
-aiExecuteBtn.addEventListener("click", () => {
-  const result = executeGeneratedTestCases();
-  aiGenerateOutput.textContent = JSON.stringify(result, null, 2);
-  if (Array.isArray(result)) {
-    aiGenerateMessage.textContent = `执行完成，共 ${result.length} 条结果`;
-  } else {
-    aiGenerateMessage.textContent = result.msg;
+aiCaseForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    const definition = buildApiDefinition(aiCaseForm);
+    latestGeneratedCases = generateCases(definition);
+    persist();
+    renderAiCases(latestGeneratedCases);
+    aiCaseOutput.textContent = JSON.stringify(latestGeneratedCases, null, 2);
+    aiCaseMessage.textContent = `生成成功，共 ${latestGeneratedCases.length} 条测试用例`;
+    aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+  } catch (error) {
+    aiCaseMessage.textContent = `测试用例生成失败：${error.message}`;
   }
+});
+
+aiSelectAllCasesBtn.addEventListener("click", () => {
+  const checkboxes = Array.from(document.querySelectorAll(".ai-case-checkbox"));
+  if (checkboxes.length === 0) {
+    aiExecuteMessage.textContent = "请先生成测试用例";
+    return;
+  }
+  const allChecked = checkboxes.every((item) => item.checked);
+  checkboxes.forEach((item) => {
+    item.checked = !allChecked;
+  });
+});
+
+aiExecuteCasesBtn.addEventListener("click", () => {
+  try {
+    const selectedIds = Array.from(document.querySelectorAll(".ai-case-checkbox:checked"))
+      .map((item) => Number(item.value))
+      .filter((item) => Number.isFinite(item));
+    if (selectedIds.length === 0) {
+      aiExecuteMessage.textContent = "请至少选择一个用例执行";
+      return;
+    }
+    const run = executeCases(selectedIds);
+    aiExecuteOutput.textContent = JSON.stringify(run, null, 2);
+    aiExecuteMessage.textContent = `执行完成，runId=${run.runId}，通过 ${run.passed}/${run.total}`;
+    const runs = queryAiResults(run.runId);
+    renderAiResults(runs);
+    aiResultOutput.textContent = JSON.stringify(runs, null, 2);
+  } catch (error) {
+    aiExecuteMessage.textContent = `执行失败：${error.message}`;
+  }
+});
+
+aiResultQueryForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const runId = String(new FormData(aiResultQueryForm).get("runId") || "").trim();
+  const runs = queryAiResults(runId);
+  renderAiResults(runs);
+  aiResultOutput.textContent = runs.length === 0
+    ? (runId ? `未找到 runId=${runId} 的执行结果` : "暂无执行结果")
+    : JSON.stringify(runs, null, 2);
+});
+
+aiLoadLatestResultsBtn.addEventListener("click", () => {
+  const runs = queryAiResults("");
+  renderAiResults(runs);
+  aiResultOutput.textContent = runs.length === 0 ? "暂无执行结果" : JSON.stringify(runs, null, 2);
 });
 
 agentRunForm.addEventListener("submit", (event) => {
@@ -594,8 +834,14 @@ loadFunctionLookupBtn.addEventListener("click", () => {
 });
 
 refreshAll();
+renderAiResults(state.aiRuns);
 versionResult.textContent = JSON.stringify(state.versions, null, 2);
 functionLookupResult.textContent = JSON.stringify(functionLookup(), null, 2);
 executionOutput.textContent = "Pages 演示模式已就绪";
-aiGenerateOutput.textContent = "输入接口定义后点击“AI生成测试用例”";
+aiDocMarkdownOutput.textContent = "提交接口定义后自动生成 Markdown 文档";
+aiDocOpenApiOutput.textContent = "提交接口定义后自动生成 OpenAPI JSON";
+aiCaseOutput.textContent = "生成后的测试用例会显示在这里";
+aiExecuteOutput.textContent = "请选择测试用例并执行";
+aiResultOutput.textContent = state.aiRuns.length === 0 ? "暂无执行结果" : JSON.stringify(state.aiRuns, null, 2);
+
 setInterval(refreshAll, 5000);

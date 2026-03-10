@@ -39,7 +39,43 @@ body {
 .menu {
   margin-top: 20px;
   display: grid;
+  gap: 12px;
+}
+
+.menu-group {
+  display: grid;
   gap: 8px;
+}
+
+.menu-group-title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+.menu-group-items {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-group-other {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.menu-group-other summary {
+  list-style: none;
+  cursor: pointer;
+  color: #dbeafe;
+  font-weight: 600;
+  padding: 4px 2px 8px;
+}
+
+.menu-group-other summary::-webkit-details-marker {
+  display: none;
 }
 
 .menu button {
@@ -147,27 +183,11 @@ button {
   flex-wrap: wrap;
 }
 
-.checkbox-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #334155;
-}
-
-.checkbox-inline input {
-  width: auto;
-  margin: 0;
-}
-
 .inline-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 10px;
   margin-bottom: 10px;
-}
-
-.inline-form input:first-child {
-  min-width: 180px;
 }
 
 .query-grid {
@@ -215,14 +235,18 @@ pre.architecture {
   color: #1d4ed8;
 }
 
+.warn {
+  margin-top: 10px;
+  color: #b45309;
+}
+
 a {
   color: #2563eb;
 }
 
-code {
-  background: #e2e8f0;
-  border-radius: 6px;
-  padding: 2px 6px;
+#aiCaseTable input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
 }
 
 @media (max-width: 1024px) {
