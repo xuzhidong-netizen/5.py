@@ -49,7 +49,7 @@ docker compose up --build
 仓库已内置三个工作流：
 
 - `CI`: 运行测试
-- `Pages`: 将 `docs/` 发布到 `6.py` 自己的 GitHub Pages
+- `Pages`: 将 `docs/` 发布到 `5.py` 自己的 GitHub Pages（地址：`https://xuzhidong-netizen.github.io/5.py/`）
 - `Docker Publish`: 将镜像发布到 `ghcr.io/xuzhidong-netizen/autotest-platform`
 
 ### GitHub Pages

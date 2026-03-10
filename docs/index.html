@@ -1,111 +1,293 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>6.py 自动化测试平台</title>
-    <link rel="stylesheet" href="./assets/styles.css" />
-  </head>
-  <body>
-    <div class="glow glow-a"></div>
-    <div class="glow glow-b"></div>
-    <main class="page">
-      <section class="hero card">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.py 经典接口测试自动化平台</title>
+  <link rel="stylesheet" href="./assets/java-pages.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>5.py 接口平台</h1>
+    <p class="subtitle">GitHub Pages 静态演示版</p>
+    <nav class="menu" id="menu">
+      <button data-panel="overview" class="active">一、项目概述</button>
+      <button data-panel="environment">二、环境配置</button>
+      <button data-panel="deploy">三、部署流程</button>
+      <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
+      <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
+      <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
+      <button data-panel="execution">四.5 执行流程中心</button>
+      <button data-panel="logs">五、日志管理</button>
+      <button data-panel="urls">六、常用网址</button>
+      <button data-panel="troubleshooting">七、故障处理</button>
+      <button data-panel="security">八、安全措施</button>
+      <button data-panel="maintenance">九、维护计划</button>
+      <button data-panel="appendix">十、附录</button>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <section id="overview" class="panel active">
+      <h2>项目概述</h2>
+      <p>当前页面是 GitHub Pages 演示环境，独立展示 5.py 的经典接口自动化测试平台。</p>
+      <div class="cards" id="summaryCards"></div>
+      <div class="block">
+        <h3>线上地址</h3>
+        <p><a href="https://xuzhidong-netizen.github.io/5.py/" target="_blank">https://xuzhidong-netizen.github.io/5.py/</a></p>
+        <p>Java 运行版请使用仓库中的 <code>java-platform</code> 启动 Spring Boot 服务。</p>
+      </div>
+    </section>
+
+    <section id="environment" class="panel">
+      <h2>环境配置</h2>
+      <div class="block">
+        <h3>2.1 开发环境</h3>
+        <ul>
+          <li>操作系统：Linux / macOS / Windows</li>
+          <li>JDK：17+</li>
+          <li>Maven：3.9+</li>
+          <li>IDE：IntelliJ IDEA</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>2.2 测试与生产建议</h3>
+        <ul>
+          <li>服务器：4C8G 起步</li>
+          <li>负载均衡：Nginx / HAProxy</li>
+          <li>备份：日志与数据库定时备份</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="deploy" class="panel">
+      <h2>部署流程</h2>
+      <div class="block">
+<pre>cd java-platform
+mvn clean package
+java -jar target/java-api-test-platform-1.0.0.jar</pre>
+      </div>
+      <div class="block">
+        <ol>
+          <li>停止旧服务</li>
+          <li>上传新包</li>
+          <li>替换文件</li>
+          <li>启动服务</li>
+          <li>检查状态</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="cases" class="panel">
+      <h2>新增案例（T_AI_CASE）</h2>
+      <form id="caseForm" class="form-grid">
+        <input name="sysId" value="cjeh2" placeholder="sysId" required>
+        <input name="sysName" value="长江e号2" placeholder="sysName" required>
+        <input name="caseId" type="number" placeholder="caseId" required>
+        <input name="caseName" placeholder="caseName" required>
+        <input name="funcNo" placeholder="funcNo" required>
+        <input name="moduleName" placeholder="moduleName" required>
+        <textarea name="caseKvBase" placeholder="caseKvBase(JSON)" required></textarea>
+        <textarea name="caseKvDynamic" placeholder="caseKvDynamic(JSON)"></textarea>
+        <button type="submit">新增案例</button>
+      </form>
+      <div id="caseMessage" class="message"></div>
+      <table class="table" id="caseTable">
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>sysId</th>
+          <th>caseId</th>
+          <th>caseName</th>
+          <th>funcNo</th>
+          <th>module</th>
+          <th>创建时间</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="functions" class="panel">
+      <h2>新增接口（T_AI_FUNCTION）</h2>
+      <form id="functionForm" class="form-grid">
+        <input name="sysId" value="cjeh2" placeholder="sysId" required>
+        <input name="sysName" value="长江e号2" placeholder="sysName" required>
+        <input name="funcNo" placeholder="funcNo" required>
+        <input name="funcName" placeholder="funcName" required>
+        <input name="funcType" value="yn" placeholder="funcType" required>
+        <input name="subFuncType" value="trade" placeholder="subFuncType">
+        <input name="funcRequestMethod" value="POST" placeholder="funcRequestMethod">
+        <input name="funcHttpUrl" placeholder="funcHttpUrl">
+        <textarea name="funcParamMatch" placeholder="funcParamMatch"></textarea>
+        <textarea name="funcRemark" placeholder="funcRemark"></textarea>
+        <button type="submit">新增接口</button>
+      </form>
+      <div id="functionMessage" class="message"></div>
+      <table class="table" id="functionTable">
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>sysId</th>
+          <th>funcNo</th>
+          <th>funcName</th>
+          <th>funcType</th>
+          <th>subFuncType</th>
+          <th>创建时间</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="versionQuery" class="panel">
+      <h2>查询执行版本 / 功能号名称和ID</h2>
+      <div class="actions">
+        <button id="loadVersionsBtn">查询质控支持的版本号 (517508)</button>
+        <button id="loadFunctionLookupBtn">查询功能号名称和ID (517504)</button>
+      </div>
+      <div class="query-grid">
         <div>
-          <p class="tag">6.py Pages Edition</p>
-          <h1>自动化测试平台</h1>
-          <p class="lede">
-            这是 `6.py` 的 GitHub Pages 静态发布版。它可以离线演示测试平台的核心信息架构，也可以接入你部署后的 FastAPI API。
-          </p>
+          <h3>版本列表</h3>
+          <pre id="versionResult"></pre>
         </div>
-        <div class="hero-actions">
-          <input id="apiBase" placeholder="可选：输入后端 API Base，例如 https://your-api.example.com" />
-          <button id="saveApiBase" class="btn btn-primary">连接 API</button>
+        <div>
+          <h3>功能号列表</h3>
+          <pre id="functionLookupResult"></pre>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="stats" id="stats"></section>
-
-      <section class="layout">
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="tag">Suites</p>
-              <h2>测试套件</h2>
-            </div>
-          </div>
-          <form id="suiteForm" class="stack">
-            <input name="name" placeholder="套件名称" required />
-            <input name="base_url" placeholder="Base URL" required />
-            <textarea name="description" rows="3" placeholder="描述"></textarea>
-            <button class="btn btn-primary" type="submit">新增套件</button>
+    <section id="execution" class="panel">
+      <h2>执行流程中心</h2>
+      <div class="query-grid">
+        <div>
+          <h3>方式1：智能体执行版本测试</h3>
+          <form id="agentRunForm" class="inline-form">
+            <input name="iVersionName" value="长江e号" placeholder="i_version_name">
+            <input name="iVersionNumber" placeholder="i_version_number">
+            <button type="submit">执行版本测试</button>
           </form>
-          <div id="suiteList" class="stack"></div>
-        </article>
-
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="tag">Cases</p>
-              <h2>测试用例</h2>
-            </div>
-          </div>
-          <form id="caseForm" class="stack">
-            <select name="suite_id" id="suiteSelect"></select>
-            <input name="name" placeholder="用例名称" required />
-            <div class="row">
-              <select name="method">
-                <option>GET</option>
-                <option>POST</option>
-                <option>PUT</option>
-                <option>PATCH</option>
-                <option>DELETE</option>
-              </select>
-              <input name="path" placeholder="/path" required />
-            </div>
-            <input name="expected_status" type="number" value="200" />
-            <textarea name="assertions" rows="3" placeholder='JSON 断言，例如 [{"path":"status","operator":"eq","expected":"ok"}]'></textarea>
-            <button class="btn btn-primary" type="submit">新增用例</button>
+          <form id="queryStatusForm" class="inline-form">
+            <input name="hisId" placeholder="hisId">
+            <button type="submit">查询任务状态</button>
           </form>
-          <div id="caseList" class="stack"></div>
-        </article>
-      </section>
+          <form id="queryResultForm" class="inline-form">
+            <input name="hisId" placeholder="hisId">
+            <button type="submit">查询执行结果</button>
+          </form>
+        </div>
+        <div>
+          <h3>方式2：DevOps 自动化测试</h3>
+          <button id="authBtn">获取 Authorization</button>
+          <form id="devopsBatchForm" class="inline-form">
+            <input name="iResource" value="0" placeholder="i_resource">
+            <input name="iSysid" value="长江e号" placeholder="i_sysid">
+            <input name="iSysver" placeholder="i_sysver">
+            <button type="submit">批量执行</button>
+          </form>
+          <div class="actions">
+            <button id="latestDevopsStatusBtn">查询最新 hisId 状态</button>
+            <button id="latestDevopsResultBtn">查询最新执行结果</button>
+          </div>
+          <form id="queryDevopsByIdForm" class="inline-form">
+            <input name="hisId" placeholder="指定 hisId">
+            <button type="submit">查询指定 hisId 状态与结果</button>
+          </form>
+        </div>
+        <div>
+          <h3>总线入口：517268</h3>
+          <form id="busForm" class="form-grid">
+            <input name="iRequestData" placeholder="i_request_data，如 authorization / aitest_devops_batch" required>
+            <input name="iResource" value="0" placeholder="i_resource">
+            <input name="iSysid" value="长江e号" placeholder="i_sysid">
+            <input name="iSysver" placeholder="i_sysver">
+            <button type="submit">执行 517268 分发</button>
+          </form>
+        </div>
+      </div>
+      <div class="block">
+        <h3>执行输出</h3>
+        <pre id="executionOutput"></pre>
+      </div>
+      <div class="block">
+        <h3>执行历史</h3>
+        <table class="table" id="executionTable">
+          <thead>
+          <tr>
+            <th>hisId</th>
+            <th>模式</th>
+            <th>版本</th>
+            <th>状态</th>
+            <th>通过率</th>
+            <th>开始时间</th>
+            <th>结束时间</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
 
-      <section class="layout">
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="tag">Runs</p>
-              <h2>执行记录</h2>
-            </div>
-          </div>
-          <div id="runList" class="stack"></div>
-        </article>
+    <section id="logs" class="panel">
+      <h2>日志管理</h2>
+      <div class="block">
+<pre>50000环境：
+cd /home/projects && tail -f nohup.out
+cd /home/cjas22000 && tail -f appserver.log</pre>
+      </div>
+      <div class="block">
+<pre>30000环境：
+cd /data/cjas22000 && tail -f appserver.log</pre>
+      </div>
+    </section>
 
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="tag">Deploy</p>
-              <h2>发布方式</h2>
-            </div>
-          </div>
-          <div class="stack">
-            <div class="note">
-              <strong>GitHub Pages</strong>
-              <p>当前静态站通过 `main` 分支变更自动发布。</p>
-            </div>
-            <div class="note">
-              <strong>云端运行版</strong>
-              <p>仓库已包含 Docker、Render、Railway 配置，可直接接入托管平台。</p>
-            </div>
-            <div class="note">
-              <strong>镜像发布</strong>
-              <p>推送到 `main` 后会自动构建并发布 `ghcr.io/xuzhidong-netizen/autotest-platform` 镜像。</p>
-            </div>
-          </div>
-        </article>
-      </section>
-    </main>
-    <script type="module" src="./assets/app.js"></script>
-  </body>
+    <section id="urls" class="panel">
+      <h2>常用网址</h2>
+      <ul>
+        <li><a href="http://172.19.181.62:8061/index.html" target="_blank">工具箱地址</a></li>
+        <li><a href="http://172.19.181.188:8061/test_func.html" target="_blank">50000环境功能号测试</a></li>
+        <li><a href="http://172.19.181.184:8061/test_func.html" target="_blank">30000环境功能号测试</a></li>
+      </ul>
+    </section>
+
+    <section id="troubleshooting" class="panel">
+      <h2>故障处理</h2>
+      <ul>
+        <li>接口新增失败：检查 funcNo + sysId 是否重复。</li>
+        <li>案例新增失败：确认功能号已先在接口表中创建。</li>
+        <li>hisId 查询失败：确认任务是否存在。</li>
+      </ul>
+    </section>
+
+    <section id="security" class="panel">
+      <h2>安全措施</h2>
+      <ul>
+        <li>敏感数据脱敏存储。</li>
+        <li>建议接入统一身份认证。</li>
+        <li>限制来源网段和接口权限。</li>
+      </ul>
+    </section>
+
+    <section id="maintenance" class="panel">
+      <h2>维护计划</h2>
+      <ul>
+        <li>每周依赖升级与回归测试。</li>
+        <li>每月压测与容量评估。</li>
+        <li>每季度容灾演练。</li>
+      </ul>
+    </section>
+
+    <section id="appendix" class="panel">
+      <h2>附录</h2>
+      <ul>
+        <li>仓库地址：<a href="https://github.com/xuzhidong-netizen/5.py" target="_blank">https://github.com/xuzhidong-netizen/5.py</a></li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script src="./assets/java-pages.js"></script>
+</body>
 </html>

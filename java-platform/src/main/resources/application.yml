@@ -1,0 +1,11 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: java-api-test-platform
+  thymeleaf:
+    cache: false
+
+platform:
+  title: 经典接口测试自动化平台 (Java)
