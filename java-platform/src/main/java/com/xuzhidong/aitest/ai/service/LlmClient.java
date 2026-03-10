@@ -17,8 +17,12 @@ public class LlmClient {
     @Value("${platform.ai.temperature:0.2}")
     private double temperature;
 
+    public boolean isConfigured() {
+        return modelUrl != null && !modelUrl.isBlank();
+    }
+
     public String chat(String prompt) {
-        if (modelUrl == null || modelUrl.isBlank()) {
+        if (!isConfigured()) {
             return "";
         }
         Map<String, Object> requestBody = new HashMap<>();

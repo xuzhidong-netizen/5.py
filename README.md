@@ -215,6 +215,7 @@ docker pull ghcr.io/zaproxy/zaproxy:stable
 - `POST /api/generate-docs`：接口文档生成（Markdown + OpenAPI）
 - `POST /api/generate-cases`：生成并入库测试用例
 - `POST /api/generate-cases/import`：导入 OpenAPI 文档（JSON/YAML）并批量生成测试用例
+  - 返回 `aiParticipated`、`aiEngines`、`remoteLlmUsedCount`、`fallbackAiUsedCount`，可确认 AI 参与情况
 - `POST /api/execute-cases`：执行指定用例并返回 `runId`
 - `GET /api/results?runId=...`：查询执行结果（可按 `runId` 过滤）
 - `POST /api/test/generate`：输入接口定义，生成并入库测试用例

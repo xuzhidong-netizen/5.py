@@ -338,7 +338,8 @@ aiImportGenerateBtn.addEventListener("click", async () => {
         latestGeneratedCases = result.generatedCases || [];
         renderAiCases(latestGeneratedCases);
         aiCaseOutput.textContent = JSON.stringify(result, null, 2);
-        aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例`;
+        const engines = Array.isArray(result.aiEngines) && result.aiEngines.length > 0 ? result.aiEngines.join(", ") : "N/A";
+        aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例。AI参与=${result.aiParticipated === true}，引擎=${engines}，远程LLM=${result.remoteLlmUsedCount ?? 0}，回退AI=${result.fallbackAiUsedCount ?? 0}`;
         aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
     } catch (error) {
         aiCaseMessage.textContent = `导入生成失败：${error.message}`;

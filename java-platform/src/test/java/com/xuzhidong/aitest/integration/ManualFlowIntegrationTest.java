@@ -307,6 +307,8 @@ class ManualFlowIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.apiCount").value(1))
             .andExpect(jsonPath("$.caseCount").value(org.hamcrest.Matchers.greaterThanOrEqualTo(3)))
+            .andExpect(jsonPath("$.aiParticipated").value(true))
+            .andExpect(jsonPath("$.aiEngines[0]").exists())
             .andExpect(jsonPath("$.apiDefinitions[0].apiPath").value("/api/account/balance"))
             .andExpect(jsonPath("$.generatedCases[0].apiName").value("余额查询"));
     }

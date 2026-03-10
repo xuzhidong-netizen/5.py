@@ -7,6 +7,10 @@ public class ApiDocumentImportResultDTO {
 
     private int apiCount;
     private int caseCount;
+    private boolean aiParticipated;
+    private int remoteLlmUsedCount;
+    private int fallbackAiUsedCount;
+    private List<String> aiEngines = new ArrayList<>();
     private List<ApiDefinitionDTO> apiDefinitions = new ArrayList<>();
     private List<TestCaseDTO> generatedCases = new ArrayList<>();
 
@@ -24,6 +28,38 @@ public class ApiDocumentImportResultDTO {
 
     public void setCaseCount(int caseCount) {
         this.caseCount = caseCount;
+    }
+
+    public boolean isAiParticipated() {
+        return aiParticipated;
+    }
+
+    public void setAiParticipated(boolean aiParticipated) {
+        this.aiParticipated = aiParticipated;
+    }
+
+    public int getRemoteLlmUsedCount() {
+        return remoteLlmUsedCount;
+    }
+
+    public void setRemoteLlmUsedCount(int remoteLlmUsedCount) {
+        this.remoteLlmUsedCount = remoteLlmUsedCount;
+    }
+
+    public int getFallbackAiUsedCount() {
+        return fallbackAiUsedCount;
+    }
+
+    public void setFallbackAiUsedCount(int fallbackAiUsedCount) {
+        this.fallbackAiUsedCount = fallbackAiUsedCount;
+    }
+
+    public List<String> getAiEngines() {
+        return aiEngines;
+    }
+
+    public void setAiEngines(List<String> aiEngines) {
+        this.aiEngines = aiEngines == null ? new ArrayList<>() : aiEngines;
     }
 
     public List<ApiDefinitionDTO> getApiDefinitions() {

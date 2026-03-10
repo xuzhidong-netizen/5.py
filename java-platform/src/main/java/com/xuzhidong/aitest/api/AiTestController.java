@@ -21,7 +21,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 public class AiTestController {
@@ -58,16 +61,30 @@ public class AiTestController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "导入文档未识别到可用接口定义");
         }
 
-        List<TestCaseDTO> generatedCases = definitions.stream()
-            .map(testCaseService::generateTestCases)
-            .flatMap(List::stream)
-            .toList();
+        List<TestCaseDTO> generatedCases = new ArrayList<>();
+        Set<String> aiEngines = new LinkedHashSet<>();
+        int remoteCount = 0;
+        int fallbackCount = 0;
+        for (ApiDefinitionDTO definition : definitions) {
+            TestCaseService.AiGenerationTrace trace = testCaseService.generateTestCasesWithAiTrace(definition);
+            generatedCases.addAll(trace.getCases());
+            aiEngines.add(trace.getAiEngine());
+            if (TestCaseService.AI_ENGINE_REMOTE_LLM.equals(trace.getAiEngine())) {
+                remoteCount += 1;
+            } else {
+                fallbackCount += 1;
+            }
+        }
 
         ApiDocumentImportResultDTO result = new ApiDocumentImportResultDTO();
         result.setApiDefinitions(definitions);
         result.setGeneratedCases(generatedCases);
         result.setApiCount(definitions.size());
         result.setCaseCount(generatedCases.size());
+        result.setAiParticipated(true);
+        result.setAiEngines(new ArrayList<>(aiEngines));
+        result.setRemoteLlmUsedCount(remoteCount);
+        result.setFallbackAiUsedCount(fallbackCount);
         return ResponseEntity.ok(result);
     }
 

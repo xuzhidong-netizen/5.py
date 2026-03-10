@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 @Service
 public class TestCaseService {
 
+    public static final String AI_ENGINE_REMOTE_LLM = "REMOTE_LLM";
+    public static final String AI_ENGINE_LOCAL_FALLBACK = "LOCAL_RULE_AI";
+
     private final LlmClient llmClient;
     private final TestCaseRepository testCaseRepository;
     private final ObjectMapper objectMapper;
@@ -32,7 +35,13 @@ public class TestCaseService {
 
     @Transactional
     public List<TestCaseDTO> generateTestCases(ApiDefinitionDTO apiDefinition) {
+        return generateTestCasesWithAiTrace(apiDefinition).getCases();
+    }
+
+    @Transactional
+    public AiGenerationTrace generateTestCasesWithAiTrace(ApiDefinitionDTO apiDefinition) {
         String prompt = buildPrompt(apiDefinition);
+        String aiEngine = AI_ENGINE_LOCAL_FALLBACK;
         String aiResponse = "";
         try {
             aiResponse = llmClient.chat(prompt);
@@ -41,7 +50,9 @@ public class TestCaseService {
         }
 
         List<TestCaseDTO> testCases = parseAiResponse(aiResponse, apiDefinition);
-        if (testCases.isEmpty()) {
+        if (!testCases.isEmpty()) {
+            aiEngine = AI_ENGINE_REMOTE_LLM;
+        } else {
             testCases = buildFallbackCases(apiDefinition);
         }
 
@@ -49,7 +60,14 @@ public class TestCaseService {
             .map(this::toEntity)
             .toList();
         List<TestCaseEntity> saved = testCaseRepository.saveAll(entities);
-        return saved.stream().map(this::toDto).toList();
+        List<TestCaseDTO> resultCases = saved.stream().map(this::toDto).toList();
+        return new AiGenerationTrace(
+            resultCases,
+            aiEngine,
+            prompt,
+            llmClient.isConfigured(),
+            AI_ENGINE_REMOTE_LLM.equals(aiEngine)
+        );
     }
 
     public List<TestCaseDTO> findByIds(List<Long> caseIds) {
@@ -220,5 +238,41 @@ public class TestCaseService {
 
     private String valueOrDefault(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value;
+    }
+
+    public static class AiGenerationTrace {
+        private final List<TestCaseDTO> cases;
+        private final String aiEngine;
+        private final String prompt;
+        private final boolean remoteConfigured;
+        private final boolean remoteResponseUsed;
+
+        public AiGenerationTrace(List<TestCaseDTO> cases, String aiEngine, String prompt, boolean remoteConfigured, boolean remoteResponseUsed) {
+            this.cases = cases;
+            this.aiEngine = aiEngine;
+            this.prompt = prompt;
+            this.remoteConfigured = remoteConfigured;
+            this.remoteResponseUsed = remoteResponseUsed;
+        }
+
+        public List<TestCaseDTO> getCases() {
+            return cases;
+        }
+
+        public String getAiEngine() {
+            return aiEngine;
+        }
+
+        public String getPrompt() {
+            return prompt;
+        }
+
+        public boolean isRemoteConfigured() {
+            return remoteConfigured;
+        }
+
+        public boolean isRemoteResponseUsed() {
+            return remoteResponseUsed;
+        }
     }
 }

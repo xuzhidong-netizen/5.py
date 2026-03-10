@@ -897,11 +897,15 @@ aiImportGenerateBtn.addEventListener("click", () => {
     const result = {
       apiCount: definitions.length,
       caseCount: latestGeneratedCases.length,
+      aiParticipated: true,
+      aiEngines: ["DEMO_AI_ENGINE"],
+      remoteLlmUsedCount: 0,
+      fallbackAiUsedCount: definitions.length,
       apiDefinitions: definitions,
       generatedCases: latestGeneratedCases
     };
     aiCaseOutput.textContent = JSON.stringify(result, null, 2);
-    aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例`;
+    aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例。AI参与=true，引擎=${result.aiEngines.join(", ")}`;
     aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
   } catch (error) {
     aiCaseMessage.textContent = `导入生成失败：${error.message}`;
