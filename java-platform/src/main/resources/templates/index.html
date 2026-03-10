@@ -45,6 +45,15 @@
     <main class="content">
         <section id="aiDocs" class="panel active">
             <h2>Ai测试 · 接口文档生成</h2>
+            <div class="block">
+                <h3>接口文档导入生成（AI参与）</h3>
+                <p>支持直接导入 OpenAPI JSON/YAML 文档，AI 自动生成文档结构与说明。</p>
+                <div class="form-grid">
+                    <input id="aiDocImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
+                    <textarea id="aiDocImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
+                    <button id="aiDocImportGenerateBtn" type="button">导入文档并生成接口文档</button>
+                </div>
+            </div>
             <form id="aiDocForm" class="form-grid">
                 <input name="apiName" value="下单接口" placeholder="apiName" required/>
                 <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
@@ -58,15 +67,6 @@
                 <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
                 <button type="submit">生成接口文档</button>
             </form>
-            <div class="block">
-                <h3>接口文档导入生成（AI参与）</h3>
-                <p>支持直接导入 OpenAPI JSON/YAML 文档，AI 自动生成文档结构与说明。</p>
-                <div class="form-grid">
-                    <input id="aiDocImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
-                    <textarea id="aiDocImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
-                    <button id="aiDocImportGenerateBtn" type="button">导入文档并生成接口文档</button>
-                </div>
-            </div>
             <div id="aiDocMessage" class="message"></div>
             <div class="query-grid">
                 <div>
@@ -82,6 +82,15 @@
 
         <section id="aiCases" class="panel">
             <h2>Ai测试 · 测试用例生成</h2>
+            <div class="block">
+                <h3>接口文档导入生成</h3>
+                <p>支持直接导入 OpenAPI JSON/YAML 文档，自动解析并生成测试用例。</p>
+                <div class="form-grid">
+                    <input id="aiCaseImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
+                    <textarea id="aiCaseImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
+                    <button id="aiCaseImportGenerateBtn" type="button">导入文档并生成用例</button>
+                </div>
+            </div>
             <form id="aiCaseForm" class="form-grid">
                 <input name="apiName" value="下单接口" placeholder="apiName" required/>
                 <input name="apiPath" value="/api/order/create" placeholder="apiPath" required/>
@@ -95,15 +104,6 @@
                 <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
                 <button type="submit">生成测试用例</button>
             </form>
-            <div class="block">
-                <h3>接口文档导入生成</h3>
-                <p>支持直接导入 OpenAPI JSON/YAML 文档，自动解析并生成测试用例。</p>
-                <div class="form-grid">
-                    <input id="aiCaseImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
-                    <textarea id="aiCaseImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
-                    <button id="aiCaseImportGenerateBtn" type="button">导入文档并生成用例</button>
-                </div>
-            </div>
             <div id="aiCaseMessage" class="message"></div>
             <pre id="aiCaseOutput"></pre>
         </section>
