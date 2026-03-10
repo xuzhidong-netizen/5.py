@@ -33,6 +33,9 @@ const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
 
 const aiCaseForm = document.getElementById("aiCaseForm");
+const aiImportFile = document.getElementById("aiImportFile");
+const aiImportText = document.getElementById("aiImportText");
+const aiImportGenerateBtn = document.getElementById("aiImportGenerateBtn");
 const aiCaseMessage = document.getElementById("aiCaseMessage");
 const aiCaseOutput = document.getElementById("aiCaseOutput");
 const aiCaseTableBody = document.querySelector("#aiCaseTable tbody");
@@ -49,6 +52,7 @@ const aiResultTableBody = document.querySelector("#aiResultTable tbody");
 const aiResultOutput = document.getElementById("aiResultOutput");
 
 let latestGeneratedCases = [];
+let latestImportedFormat = "auto";
 
 menu.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-panel]");
@@ -88,6 +92,17 @@ function buildApiDefinition(form) {
         requestParams: parseJsonArray(data.requestParams, "requestParams"),
         responseParams: parseJsonArray(data.responseParams || "[]", "responseParams")
     };
+}
+
+function detectDocFormatByFileName(fileName) {
+    const lower = String(fileName || "").toLowerCase();
+    if (lower.endsWith(".yaml") || lower.endsWith(".yml")) {
+        return "yaml";
+    }
+    if (lower.endsWith(".json")) {
+        return "json";
+    }
+    return "auto";
 }
 
 async function http(path, options = {}) {
@@ -288,6 +303,45 @@ aiCaseForm.addEventListener("submit", async (event) => {
         aiExecuteMessage.textContent = `已同步 ${result.length} 条用例到执行列表`;
     } catch (error) {
         aiCaseMessage.textContent = `测试用例生成失败：${error.message}`;
+    }
+});
+
+aiImportFile.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+    try {
+        const text = await file.text();
+        aiImportText.value = text;
+        latestImportedFormat = detectDocFormatByFileName(file.name);
+        aiCaseMessage.textContent = `已导入文档文件：${file.name}`;
+    } catch (error) {
+        aiCaseMessage.textContent = `读取文件失败：${error.message}`;
+    }
+});
+
+aiImportGenerateBtn.addEventListener("click", async () => {
+    const content = String(aiImportText.value || "").trim();
+    if (!content) {
+        aiCaseMessage.textContent = "请先粘贴或导入接口文档";
+        return;
+    }
+    try {
+        const result = await http("/api/generate-cases/import", {
+            method: "POST",
+            body: JSON.stringify({
+                documentContent: content,
+                format: latestImportedFormat
+            })
+        });
+        latestGeneratedCases = result.generatedCases || [];
+        renderAiCases(latestGeneratedCases);
+        aiCaseOutput.textContent = JSON.stringify(result, null, 2);
+        aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例`;
+        aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+    } catch (error) {
+        aiCaseMessage.textContent = `导入生成失败：${error.message}`;
     }
 });
 

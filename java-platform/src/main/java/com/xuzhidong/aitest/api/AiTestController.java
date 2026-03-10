@@ -1,11 +1,14 @@
 package com.xuzhidong.aitest.api;
 
 import com.xuzhidong.aitest.ai.dto.ApiDefinitionDTO;
+import com.xuzhidong.aitest.ai.dto.ApiDocumentImportRequestDTO;
+import com.xuzhidong.aitest.ai.dto.ApiDocumentImportResultDTO;
 import com.xuzhidong.aitest.ai.dto.ApiDocumentDTO;
 import com.xuzhidong.aitest.ai.dto.ExecuteRequestDTO;
 import com.xuzhidong.aitest.ai.dto.ExecutionBatchResultDTO;
 import com.xuzhidong.aitest.ai.dto.TestCaseDTO;
 import com.xuzhidong.aitest.ai.service.AiExecutionService;
+import com.xuzhidong.aitest.ai.service.ApiDefinitionImportService;
 import com.xuzhidong.aitest.ai.service.ApiDocumentService;
 import com.xuzhidong.aitest.ai.service.TestCaseService;
 import jakarta.validation.Valid;
@@ -23,11 +26,16 @@ import java.util.List;
 @RestController
 public class AiTestController {
 
+    private final ApiDefinitionImportService apiDefinitionImportService;
     private final ApiDocumentService apiDocumentService;
     private final TestCaseService testCaseService;
     private final AiExecutionService aiExecutionService;
 
-    public AiTestController(ApiDocumentService apiDocumentService, TestCaseService testCaseService, AiExecutionService aiExecutionService) {
+    public AiTestController(ApiDefinitionImportService apiDefinitionImportService,
+                            ApiDocumentService apiDocumentService,
+                            TestCaseService testCaseService,
+                            AiExecutionService aiExecutionService) {
+        this.apiDefinitionImportService = apiDefinitionImportService;
         this.apiDocumentService = apiDocumentService;
         this.testCaseService = testCaseService;
         this.aiExecutionService = aiExecutionService;
@@ -41,6 +49,26 @@ public class AiTestController {
     @PostMapping("/api/generate-cases")
     public ResponseEntity<List<TestCaseDTO>> generateCases(@Valid @RequestBody ApiDefinitionDTO apiDefinition) {
         return ResponseEntity.ok(testCaseService.generateTestCases(apiDefinition));
+    }
+
+    @PostMapping("/api/generate-cases/import")
+    public ResponseEntity<ApiDocumentImportResultDTO> generateCasesByImportedDocument(@Valid @RequestBody ApiDocumentImportRequestDTO request) {
+        List<ApiDefinitionDTO> definitions = apiDefinitionImportService.parse(request.getDocumentContent(), request.getFormat());
+        if (definitions.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "导入文档未识别到可用接口定义");
+        }
+
+        List<TestCaseDTO> generatedCases = definitions.stream()
+            .map(testCaseService::generateTestCases)
+            .flatMap(List::stream)
+            .toList();
+
+        ApiDocumentImportResultDTO result = new ApiDocumentImportResultDTO();
+        result.setApiDefinitions(definitions);
+        result.setGeneratedCases(generatedCases);
+        result.setApiCount(definitions.size());
+        result.setCaseCount(generatedCases.size());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/api/execute-cases")

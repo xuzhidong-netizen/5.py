@@ -235,6 +235,10 @@ pre.architecture {
   color: #1d4ed8;
 }
 
+#aiImportText {
+  min-height: 180px;
+}
+
 .warn {
   margin-top: 10px;
   color: #b45309;

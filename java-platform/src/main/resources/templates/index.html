@@ -86,6 +86,15 @@
                 <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
                 <button type="submit">生成测试用例</button>
             </form>
+            <div class="block">
+                <h3>接口文档导入生成</h3>
+                <p>支持直接导入 OpenAPI JSON/YAML 文档，自动解析并生成测试用例。</p>
+                <div class="form-grid">
+                    <input id="aiImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
+                    <textarea id="aiImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
+                    <button id="aiImportGenerateBtn" type="button">导入文档并生成用例</button>
+                </div>
+            </div>
             <div id="aiCaseMessage" class="message"></div>
             <pre id="aiCaseOutput"></pre>
         </section>

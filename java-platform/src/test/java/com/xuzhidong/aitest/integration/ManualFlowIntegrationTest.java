@@ -245,4 +245,69 @@ class ManualFlowIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].runId").exists());
     }
+
+    @Test
+    void shouldImportOpenApiDocAndGenerateCases() throws Exception {
+        String openApiDoc = """
+            {
+              "openapi": "3.0.3",
+              "info": {
+                "title": "导入测试文档",
+                "version": "1.0.0"
+              },
+              "paths": {
+                "/api/account/balance": {
+                  "post": {
+                    "summary": "余额查询",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "required": ["fundAccount"],
+                            "properties": {
+                              "fundAccount": {"type": "string", "description": "资金账号", "example": "A10001"},
+                              "currency": {"type": "string", "description": "币种", "example": "CNY"}
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "responses": {
+                      "200": {
+                        "description": "success",
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "object",
+                              "properties": {
+                                "balance": {"type": "number", "description": "可用余额", "example": 1000.12},
+                                "currency": {"type": "string", "description": "币种", "example": "CNY"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+
+        mockMvc.perform(post("/api/generate-cases/import")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "format": "json",
+                      "documentContent": %s
+                    }
+                    """.formatted(objectMapper.writeValueAsString(openApiDoc))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apiCount").value(1))
+            .andExpect(jsonPath("$.caseCount").value(org.hamcrest.Matchers.greaterThanOrEqualTo(3)))
+            .andExpect(jsonPath("$.apiDefinitions[0].apiPath").value("/api/account/balance"))
+            .andExpect(jsonPath("$.generatedCases[0].apiName").value("余额查询"));
+    }
 }

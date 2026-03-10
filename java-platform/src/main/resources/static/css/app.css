@@ -251,6 +251,10 @@ pre.architecture {
     color: #1d4ed8;
 }
 
+#aiImportText {
+    min-height: 180px;
+}
+
 #aiCaseTable input[type="checkbox"] {
     width: 16px;
     height: 16px;

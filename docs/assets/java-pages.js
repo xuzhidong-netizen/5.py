@@ -35,6 +35,9 @@ const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
 
 const aiCaseForm = document.getElementById("aiCaseForm");
+const aiImportFile = document.getElementById("aiImportFile");
+const aiImportText = document.getElementById("aiImportText");
+const aiImportGenerateBtn = document.getElementById("aiImportGenerateBtn");
 const aiCaseMessage = document.getElementById("aiCaseMessage");
 const aiCaseOutput = document.getElementById("aiCaseOutput");
 const aiCaseTableBody = document.querySelector("#aiCaseTable tbody");
@@ -96,6 +99,7 @@ const defaultState = {
 
 let state = loadState();
 let latestGeneratedCases = [];
+let latestImportedFormat = "auto";
 
 menu.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-panel]");
@@ -182,6 +186,144 @@ function buildApiDefinition(form) {
     requestParams: parseJsonArray(data.requestParams, "requestParams"),
     responseParams: parseJsonArray(data.responseParams || "[]", "responseParams")
   };
+}
+
+function detectDocFormatByFileName(fileName) {
+  const lower = String(fileName || "").toLowerCase();
+  if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "yaml";
+  if (lower.endsWith(".json")) return "json";
+  return "auto";
+}
+
+function parseDefinitionsFromImportedDoc(documentText, format = "auto") {
+  const normalized = String(format || "auto").toLowerCase();
+  let root = null;
+  if (normalized === "yaml" || normalized === "yml") {
+    if (!window.jsyaml || typeof window.jsyaml.load !== "function") {
+      throw new Error("YAML 解析器未加载，请刷新页面后重试");
+    }
+    root = window.jsyaml.load(documentText);
+  } else if (normalized === "json") {
+    try {
+      root = JSON.parse(documentText);
+    } catch (error) {
+      throw new Error(`文档 JSON 解析失败：${error.message}`);
+    }
+  } else {
+    try {
+      root = JSON.parse(documentText);
+    } catch (jsonError) {
+      if (!window.jsyaml || typeof window.jsyaml.load !== "function") {
+        throw new Error(`文档解析失败：${jsonError.message}`);
+      }
+      try {
+        root = window.jsyaml.load(documentText);
+      } catch (yamlError) {
+        throw new Error(`文档解析失败：${yamlError.message}`);
+      }
+    }
+  }
+
+  if (Array.isArray(root)) {
+    return root
+      .map((item) => item && typeof item === "object" ? item : null)
+      .filter((item) => item && item.apiName && item.apiPath && item.method)
+      .map((item) => ({
+        apiName: item.apiName,
+        apiPath: item.apiPath,
+        method: item.method,
+        requestParams: Array.isArray(item.requestParams) ? item.requestParams : [],
+        responseParams: Array.isArray(item.responseParams) ? item.responseParams : []
+      }));
+  }
+
+  if (root && typeof root === "object" && root.apiName && root.apiPath && root.method) {
+    return [{
+      apiName: root.apiName,
+      apiPath: root.apiPath,
+      method: root.method,
+      requestParams: Array.isArray(root.requestParams) ? root.requestParams : [],
+      responseParams: Array.isArray(root.responseParams) ? root.responseParams : []
+    }];
+  }
+
+  return parseOpenApiToDefinitions(root);
+}
+
+function parseOpenApiToDefinitions(root) {
+  const httpMethods = new Set(["get", "post", "put", "delete", "patch", "head", "options"]);
+  const paths = root && typeof root === "object" && root.paths && typeof root.paths === "object"
+    ? root.paths
+    : {};
+  const definitions = [];
+
+  const parseSchemaProperties = (schema, withRequired) => {
+    const props = schema && typeof schema === "object" && schema.properties && typeof schema.properties === "object"
+      ? schema.properties
+      : {};
+    const requiredSet = withRequired && Array.isArray(schema.required) ? new Set(schema.required.map((item) => String(item))) : new Set();
+    return Object.keys(props).map((name) => {
+      const field = props[name] && typeof props[name] === "object" ? props[name] : {};
+      return {
+        name,
+        type: field.type || "string",
+        required: withRequired ? requiredSet.has(name) : false,
+        description: field.description || "",
+        example: field.example === undefined || field.example === null ? "" : String(field.example)
+      };
+    });
+  };
+
+  Object.keys(paths).forEach((apiPath) => {
+    const pathItem = paths[apiPath] && typeof paths[apiPath] === "object" ? paths[apiPath] : {};
+    Object.keys(pathItem).forEach((methodKey) => {
+      if (!httpMethods.has(methodKey.toLowerCase())) return;
+      const operation = pathItem[methodKey] && typeof pathItem[methodKey] === "object" ? pathItem[methodKey] : {};
+      const requestParams = [];
+
+      if (Array.isArray(operation.parameters)) {
+        operation.parameters.forEach((param) => {
+          if (!param || typeof param !== "object") return;
+          const schema = param.schema && typeof param.schema === "object" ? param.schema : {};
+          requestParams.push({
+            name: param.name || "",
+            type: schema.type || "string",
+            required: Boolean(param.required),
+            description: param.description || "",
+            example: param.example !== undefined ? String(param.example) : (schema.example !== undefined ? String(schema.example) : "")
+          });
+        });
+      }
+
+      const requestSchema = operation.requestBody
+        && operation.requestBody.content
+        && operation.requestBody.content["application/json"]
+        && operation.requestBody.content["application/json"].schema
+        ? operation.requestBody.content["application/json"].schema
+        : null;
+      requestParams.push(...parseSchemaProperties(requestSchema, true));
+
+      const responses = operation.responses && typeof operation.responses === "object" ? operation.responses : {};
+      const success = responses["200"] || responses["201"] || responses.default || {};
+      const responseSchema = success
+        && success.content
+        && success.content["application/json"]
+        && success.content["application/json"].schema
+        ? success.content["application/json"].schema
+        : null;
+      const responseParams = parseSchemaProperties(responseSchema, false);
+
+      definitions.push({
+        apiName: operation.summary || operation.operationId || `${methodKey.toUpperCase()} ${apiPath}`,
+        apiPath,
+        method: methodKey.toUpperCase(),
+        requestParams,
+        responseParams
+      });
+    });
+  });
+
+  return definitions;
 }
 
 function generateDocs(definition) {
@@ -722,6 +864,47 @@ aiCaseForm.addEventListener("submit", (event) => {
     aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
   } catch (error) {
     aiCaseMessage.textContent = `测试用例生成失败：${error.message}`;
+  }
+});
+
+aiImportFile.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    aiImportText.value = text;
+    latestImportedFormat = detectDocFormatByFileName(file.name);
+    aiCaseMessage.textContent = `已导入文档文件：${file.name}`;
+  } catch (error) {
+    aiCaseMessage.textContent = `读取文件失败：${error.message}`;
+  }
+});
+
+aiImportGenerateBtn.addEventListener("click", () => {
+  const content = String(aiImportText.value || "").trim();
+  if (!content) {
+    aiCaseMessage.textContent = "请先粘贴或导入接口文档";
+    return;
+  }
+  try {
+    const definitions = parseDefinitionsFromImportedDoc(content, latestImportedFormat);
+    if (definitions.length === 0) {
+      throw new Error("导入文档未识别到可用接口定义");
+    }
+    latestGeneratedCases = definitions.flatMap((definition) => generateCases(definition));
+    persist();
+    renderAiCases(latestGeneratedCases);
+    const result = {
+      apiCount: definitions.length,
+      caseCount: latestGeneratedCases.length,
+      apiDefinitions: definitions,
+      generatedCases: latestGeneratedCases
+    };
+    aiCaseOutput.textContent = JSON.stringify(result, null, 2);
+    aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例`;
+    aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+  } catch (error) {
+    aiCaseMessage.textContent = `导入生成失败：${error.message}`;
   }
 });
 
