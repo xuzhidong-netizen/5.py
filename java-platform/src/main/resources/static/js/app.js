@@ -49,6 +49,8 @@ const aiDocForm = document.getElementById("aiDocForm");
 const aiDocImportFile = document.getElementById("aiDocImportFile");
 const aiDocImportText = document.getElementById("aiDocImportText");
 const aiDocImportGenerateBtn = document.getElementById("aiDocImportGenerateBtn");
+const aiDocExportExcelBtn = document.getElementById("aiDocExportExcelBtn");
+const aiDocImportExportExcelBtn = document.getElementById("aiDocImportExportExcelBtn");
 const aiDocMessage = document.getElementById("aiDocMessage");
 const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
@@ -73,6 +75,7 @@ const aiResultTableBody = document.querySelector("#aiResultTable tbody");
 const aiResultOutput = document.getElementById("aiResultOutput");
 
 let latestGeneratedCases = [];
+let latestAiDocDefinition = null;
 let latestExecutableCases = [];
 let latestDocImportedFormat = "auto";
 let latestCaseImportedFormat = "auto";
@@ -442,6 +445,43 @@ async function http(path, options = {}) {
         throw new Error(payload.msg || "业务处理失败");
     }
     return payload;
+}
+
+async function downloadExcel(path, payload, fallbackFileName) {
+    const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            const errorBody = await response.json().catch(() => null);
+            message = errorBody?.message || errorBody?.msg || message;
+        } else {
+            const text = await response.text().catch(() => "");
+            if (text) {
+                message = text;
+            }
+        }
+        throw new Error(message);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition") || "";
+    let fileName = fallbackFileName;
+    const matched = disposition.match(/filename\*?=(?:UTF-8'')?\"?([^\";]+)/i);
+    if (matched && matched[1]) {
+        fileName = decodeURIComponent(matched[1].replace(/"/g, ""));
+    }
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
 }
 
 function renderSummary(summary) {
@@ -950,6 +990,7 @@ aiDocForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
         const payload = buildApiDefinition(aiDocForm);
+        latestAiDocDefinition = payload;
         const result = await http("/api/generate-docs", {
             method: "POST",
             body: JSON.stringify(payload)
@@ -1025,6 +1066,39 @@ aiDocImportGenerateBtn.addEventListener("click", async () => {
         aiDocMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口并完成文档生成。AI参与=${result.aiParticipated === true}，引擎=${engines}，远程LLM=${result.remoteLlmUsedCount ?? 0}，回退AI=${result.fallbackAiUsedCount ?? 0}`;
     } catch (error) {
         aiDocMessage.textContent = `导入生成失败：${error.message}`;
+    }
+});
+
+aiDocExportExcelBtn.addEventListener("click", async () => {
+    try {
+        const payload = latestAiDocDefinition || buildApiDefinition(aiDocForm);
+        setButtonBusy(aiDocExportExcelBtn, true, "导出中...");
+        await downloadExcel("/api/generate-docs/export/excel", payload, "api-document.xlsx");
+        aiDocMessage.textContent = "Excel导出成功";
+    } catch (error) {
+        aiDocMessage.textContent = `Excel导出失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiDocExportExcelBtn, false);
+    }
+});
+
+aiDocImportExportExcelBtn.addEventListener("click", async () => {
+    const content = String(aiDocImportText.value || "").trim();
+    if (!content) {
+        aiDocMessage.textContent = "请先粘贴或导入接口文档";
+        return;
+    }
+    try {
+        setButtonBusy(aiDocImportExportExcelBtn, true, "导出中...");
+        await downloadExcel("/api/generate-docs/import/export/excel", {
+            documentContent: content,
+            format: latestDocImportedFormat
+        }, "api-documents.xlsx");
+        aiDocMessage.textContent = "导入文档Excel导出成功";
+    } catch (error) {
+        aiDocMessage.textContent = `导入文档Excel导出失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiDocImportExportExcelBtn, false);
     }
 });
 

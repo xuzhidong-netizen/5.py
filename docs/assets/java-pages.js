@@ -52,6 +52,8 @@ const aiDocForm = document.getElementById("aiDocForm");
 const aiDocImportFile = document.getElementById("aiDocImportFile");
 const aiDocImportText = document.getElementById("aiDocImportText");
 const aiDocImportGenerateBtn = document.getElementById("aiDocImportGenerateBtn");
+const aiDocExportExcelBtn = document.getElementById("aiDocExportExcelBtn");
+const aiDocImportExportExcelBtn = document.getElementById("aiDocImportExportExcelBtn");
 const aiDocMessage = document.getElementById("aiDocMessage");
 const aiDocMarkdownOutput = document.getElementById("aiDocMarkdownOutput");
 const aiDocOpenApiOutput = document.getElementById("aiDocOpenApiOutput");
@@ -124,6 +126,7 @@ const defaultState = {
 let state = loadState();
 let latestGeneratedCases = [];
 let latestExecutableCases = [];
+let latestAiDocDefinition = null;
 let latestDocImportedFormat = "auto";
 let latestCaseImportedFormat = "auto";
 let latestAiInterfaceRows = [];
@@ -982,6 +985,48 @@ function generateDocs(definition) {
   };
 }
 
+function buildApiDocExcelRows(definitions) {
+  const rows = [];
+  (definitions || []).forEach((definition) => {
+    const requestParams = Array.isArray(definition.requestParams) ? definition.requestParams : [];
+    const responseParams = Array.isArray(definition.responseParams) ? definition.responseParams : [];
+    const maxRows = Math.max(Math.max(requestParams.length, responseParams.length), 1);
+    for (let i = 0; i < maxRows; i += 1) {
+      const request = requestParams[i] || {};
+      const response = responseParams[i] || {};
+      rows.push({
+        接口名称: definition.apiName || "",
+        接口路径: definition.apiPath || "",
+        请求方法: normalizeMethod(definition.method),
+        请求参数名称: request.name || "",
+        请求参数类型: request.type || "",
+        是否必填: request.name ? (request.required ? "Yes" : "No") : "",
+        默认值: request.name ? (request.example || "N/A") : "",
+        返回字段: response.name || "",
+        返回类型: response.type || "",
+        返回说明: response.description || ""
+      });
+    }
+  });
+  return rows;
+}
+
+function exportApiDocExcel(definitions, filePrefix) {
+  if (!window.XLSX || typeof window.XLSX.utils?.book_new !== "function") {
+    throw new Error("Excel导出依赖未加载，请刷新页面后重试");
+  }
+  if (!Array.isArray(definitions) || definitions.length === 0) {
+    throw new Error("没有可导出的接口文档数据");
+  }
+  const headers = ["接口名称", "接口路径", "请求方法", "请求参数名称", "请求参数类型", "是否必填", "默认值", "返回字段", "返回类型", "返回说明"];
+  const rows = buildApiDocExcelRows(definitions);
+  const worksheet = window.XLSX.utils.json_to_sheet(rows, {header: headers});
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, "接口文档");
+  const timestamp = new Date().toISOString().replaceAll("-", "").replaceAll(":", "").replace("T", "_").slice(0, 15);
+  window.XLSX.writeFile(workbook, `${filePrefix}_${timestamp}.xlsx`);
+}
+
 function buildRequestBody(params, invalid = false) {
   const payload = {};
   params.forEach((item) => {
@@ -1832,6 +1877,7 @@ aiDocForm.addEventListener("submit", (event) => {
   event.preventDefault();
   try {
     const definition = buildApiDefinition(aiDocForm);
+    latestAiDocDefinition = definition;
     const docs = generateDocs(definition);
     aiDocMessage.textContent = `接口文档生成成功。AI参与=${docs.aiParticipated === true}，引擎=${docs.aiEngine}`;
     aiDocMarkdownOutput.textContent = docs.markdown;
@@ -1886,6 +1932,31 @@ aiDocImportGenerateBtn.addEventListener("click", () => {
     aiDocMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口并完成文档生成。AI参与=true，引擎=${result.aiEngines.join(", ")}`;
   } catch (error) {
     aiDocMessage.textContent = `导入生成失败：${error.message}`;
+  }
+});
+
+aiDocExportExcelBtn.addEventListener("click", () => {
+  try {
+    const definition = latestAiDocDefinition || buildApiDefinition(aiDocForm);
+    exportApiDocExcel([definition], "api-document");
+    aiDocMessage.textContent = "Excel导出成功";
+  } catch (error) {
+    aiDocMessage.textContent = `Excel导出失败：${error.message}`;
+  }
+});
+
+aiDocImportExportExcelBtn.addEventListener("click", () => {
+  const content = String(aiDocImportText.value || "").trim();
+  if (!content) {
+    aiDocMessage.textContent = "请先粘贴或导入接口文档";
+    return;
+  }
+  try {
+    const definitions = parseDefinitionsFromImportedDoc(content, latestDocImportedFormat);
+    exportApiDocExcel(definitions, "api-documents");
+    aiDocMessage.textContent = `导出成功，共 ${definitions.length} 个接口`;
+  } catch (error) {
+    aiDocMessage.textContent = `导出失败：${error.message}`;
   }
 });
 

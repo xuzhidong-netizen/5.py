@@ -11,12 +11,15 @@ import com.xuzhidong.aitest.ai.dto.TestCaseDTO;
 import com.xuzhidong.aitest.ai.service.AiExecutionService;
 import com.xuzhidong.aitest.ai.service.ApiDefinitionImportService;
 import com.xuzhidong.aitest.ai.service.ApiDocumentService;
+import com.xuzhidong.aitest.ai.service.ApiDocumentExcelService;
 import com.xuzhidong.aitest.ai.service.TestCaseService;
 import com.xuzhidong.aitest.model.AiCase;
 import com.xuzhidong.aitest.service.AiInterfaceCaseService;
 import com.xuzhidong.aitest.service.PlatformStore;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,23 +34,30 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @RestController
 public class AiTestController {
 
+    private static final DateTimeFormatter EXCEL_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
     private final ApiDefinitionImportService apiDefinitionImportService;
     private final ApiDocumentService apiDocumentService;
+    private final ApiDocumentExcelService apiDocumentExcelService;
     private final TestCaseService testCaseService;
     private final AiExecutionService aiExecutionService;
     private final PlatformStore platformStore;
 
     public AiTestController(ApiDefinitionImportService apiDefinitionImportService,
                             ApiDocumentService apiDocumentService,
+                            ApiDocumentExcelService apiDocumentExcelService,
                             TestCaseService testCaseService,
                             AiExecutionService aiExecutionService,
                             PlatformStore platformStore) {
         this.apiDefinitionImportService = apiDefinitionImportService;
         this.apiDocumentService = apiDocumentService;
+        this.apiDocumentExcelService = apiDocumentExcelService;
         this.testCaseService = testCaseService;
         this.aiExecutionService = aiExecutionService;
         this.platformStore = platformStore;
@@ -56,6 +66,16 @@ public class AiTestController {
     @PostMapping("/api/generate-docs")
     public ResponseEntity<ApiDocumentDTO> generateDocs(@Valid @RequestBody ApiDefinitionDTO apiDefinition) {
         return ResponseEntity.ok(apiDocumentService.generate(apiDefinition));
+    }
+
+    @PostMapping("/api/generate-docs/export/excel")
+    public ResponseEntity<byte[]> exportDocsExcel(@Valid @RequestBody ApiDefinitionDTO apiDefinition) {
+        byte[] fileBytes = apiDocumentExcelService.exportDefinitions(List.of(apiDefinition));
+        String fileName = "api-document-" + EXCEL_TIME_FORMATTER.format(LocalDateTime.now()) + ".xlsx";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .body(fileBytes);
     }
 
     @PostMapping("/api/generate-docs/import")
@@ -89,6 +109,20 @@ public class AiTestController {
         result.setRemoteLlmUsedCount(remoteCount);
         result.setFallbackAiUsedCount(fallbackCount);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/api/generate-docs/import/export/excel")
+    public ResponseEntity<byte[]> exportImportedDocsExcel(@Valid @RequestBody ApiDocumentImportRequestDTO request) {
+        List<ApiDefinitionDTO> definitions = apiDefinitionImportService.parse(request.getDocumentContent(), request.getFormat());
+        if (definitions.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "导入文档未识别到可用接口定义");
+        }
+        byte[] fileBytes = apiDocumentExcelService.exportDefinitions(definitions);
+        String fileName = "api-documents-" + EXCEL_TIME_FORMATTER.format(LocalDateTime.now()) + ".xlsx";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .body(fileBytes);
     }
 
     @PostMapping("/api/generate-cases")

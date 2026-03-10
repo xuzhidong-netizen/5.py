@@ -175,6 +175,10 @@
                 <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
                 <button type="submit">生成接口文档</button>
             </form>
+            <div class="actions">
+                <button id="aiDocExportExcelBtn" type="button">导出当前接口文档Excel</button>
+                <button id="aiDocImportExportExcelBtn" type="button">导出导入结果Excel</button>
+            </div>
             <div id="aiDocMessage" class="message"></div>
             <div class="query-grid">
                 <div>
