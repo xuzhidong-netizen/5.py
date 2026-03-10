@@ -122,4 +122,26 @@ class ManualFlowIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200));
     }
+
+    @Test
+    void shouldGenerateAiCaseOnHomepageFlow() throws Exception {
+        mockMvc.perform(post("/api/ai/cases/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "sysId": "cjeh2",
+                      "sysName": "长江e号2",
+                      "funcNo": "500.6",
+                      "moduleName": "普通买入",
+                      "scenario": "交易买入成功",
+                      "businessGoal": "验证委托确认接口返回成功",
+                      "autoSave": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.saved").value(true))
+            .andExpect(jsonPath("$.data.generatedCase.funcNo").value("500.6"))
+            .andExpect(jsonPath("$.data.generatedCase.caseName").value(org.hamcrest.Matchers.containsString("AI生成_")));
+    }
 }

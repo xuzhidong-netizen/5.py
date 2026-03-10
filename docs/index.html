@@ -34,6 +34,38 @@
       <p>当前页面是 GitHub Pages 演示环境，独立展示 5.py 的经典接口自动化测试平台。</p>
       <div class="cards" id="summaryCards"></div>
       <div class="block">
+        <h3>AI生成测试用例</h3>
+        <form id="aiCaseForm" class="form-grid">
+          <input name="sysId" value="cjeh2" placeholder="sysId" required>
+          <input name="sysName" value="长江e号2" placeholder="sysName">
+          <input name="funcNo" value="500.6" placeholder="funcNo" required>
+          <input name="moduleName" value="普通买入" placeholder="moduleName">
+          <input name="scenario" value="交易买入成功" placeholder="scenario">
+          <textarea name="businessGoal" placeholder="businessGoal" required>验证委托确认接口在标准交易场景下返回成功结果</textarea>
+          <div class="actions">
+            <label class="checkbox-inline">
+              <input name="autoSave" type="checkbox" checked>
+              自动保存到案例库
+            </label>
+          </div>
+          <button type="submit">AI生成测试用例</button>
+        </form>
+        <div id="aiCaseMessage" class="message"></div>
+        <pre id="aiCaseOutput"></pre>
+      </div>
+      <div class="block">
+        <h3>一、总体架构</h3>
+        <h4>架构图</h4>
+<pre class="architecture">+-------------------+        +-----------------+        +--------------------+       +-------------------------------+
+| Frontend (UI)     | <----> | API Controller  | <----> | Test Case Service  | <----> | Database (MySQL/PostgreSQL)  |
++-------------------+        +-----------------+        +--------------------+       +-------------------------------+
+                                                          ↑                   ↑
+                                                          |                   |
+                                              +------------------+     +-----------------+
+                                              | LLM Model Client |     | Task Execution  |
+                                              +------------------+     +-----------------+</pre>
+      </div>
+      <div class="block">
         <h3>线上地址</h3>
         <p><a href="https://xuzhidong-netizen.github.io/5.py/" target="_blank">https://xuzhidong-netizen.github.io/5.py/</a></p>
         <p>Java 运行版请使用仓库中的 <code>java-platform</code> 启动 Spring Boot 服务。</p>

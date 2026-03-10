@@ -8,6 +8,7 @@ const executionTableBody = document.querySelector("#executionTable tbody");
 
 const functionForm = document.getElementById("functionForm");
 const caseForm = document.getElementById("caseForm");
+const aiCaseForm = document.getElementById("aiCaseForm");
 const agentRunForm = document.getElementById("agentRunForm");
 const queryStatusForm = document.getElementById("queryStatusForm");
 const queryResultForm = document.getElementById("queryResultForm");
@@ -26,6 +27,8 @@ const caseMessage = document.getElementById("caseMessage");
 const versionResult = document.getElementById("versionResult");
 const functionLookupResult = document.getElementById("functionLookupResult");
 const executionOutput = document.getElementById("executionOutput");
+const aiCaseMessage = document.getElementById("aiCaseMessage");
+const aiCaseOutput = document.getElementById("aiCaseOutput");
 
 menu.addEventListener("click", (event) => {
     const button = event.target.closest("button");
@@ -165,6 +168,48 @@ caseForm.addEventListener("submit", async (event) => {
     }
 });
 
+aiCaseForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = formToJson(aiCaseForm);
+    const payload = {
+        sysId: data.sysId,
+        sysName: data.sysName,
+        funcNo: data.funcNo,
+        moduleName: data.moduleName,
+        scenario: data.scenario,
+        businessGoal: data.businessGoal,
+        auto_save: Boolean(new FormData(aiCaseForm).get("autoSave"))
+    };
+    try {
+        const result = await http("/api/ai/cases/generate", {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        aiCaseOutput.textContent = JSON.stringify(result, null, 2);
+        const generated = result.data?.generatedCase;
+        aiCaseMessage.textContent = result.msg;
+        if (generated) {
+            const setValue = (name, value) => {
+                const element = caseForm.querySelector(`[name="${name}"]`);
+                if (element && value !== undefined && value !== null) {
+                    element.value = String(value);
+                }
+            };
+            setValue("sysId", generated.sysId);
+            setValue("sysName", generated.sysName);
+            setValue("caseId", generated.caseId);
+            setValue("caseName", generated.caseName);
+            setValue("funcNo", generated.funcNo);
+            setValue("moduleName", generated.moduleName);
+            setValue("caseKvBase", generated.caseKvBase);
+            setValue("caseKvDynamic", generated.caseKvDynamic);
+        }
+        await refreshAll();
+    } catch (error) {
+        aiCaseMessage.textContent = `AI生成失败：${error.message}`;
+    }
+});
+
 agentRunForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const result = await http("/api/executions/agent", {
@@ -254,6 +299,10 @@ loadFunctionLookupBtn.addEventListener("click", async () => {
 refreshAll().catch((error) => {
     executionOutput.textContent = `初始化失败: ${error.message}`;
 });
+
+if (aiCaseOutput) {
+    aiCaseOutput.textContent = "点击上方“AI生成测试用例”开始生成";
+}
 
 setInterval(() => {
     refreshAll().catch(() => {});
