@@ -15,11 +15,11 @@
             <div class="menu-group">
                 <div class="menu-group-title">Ai测试</div>
                 <div class="menu-group-items">
-                    <button data-panel="aiInterfaceCases" class="active">AI生成接口案例</button>
-                    <button data-panel="aiDocs">接口文档生成</button>
-                    <button data-panel="aiCases">测试用例生成</button>
+                    <button data-panel="aiDocs" class="active">接口文档生成</button>
+                    <button data-panel="aiInterfaceCases">AI生成接口案例</button>
+                    <button data-panel="aiPreCases">预生成案例管理</button>
                     <button data-panel="aiExecute">用例执行</button>
-                    <button data-panel="aiResults">执行结果展示</button>
+                    <button data-panel="aiResults">执行结果</button>
                 </div>
             </div>
             <details class="menu-group menu-group-other" open>
@@ -44,23 +44,49 @@
     </aside>
 
     <main class="content">
-        <section id="aiInterfaceCases" class="panel active">
+        <section id="aiInterfaceCases" class="panel">
             <h2>Ai测试 · AI生成接口案例</h2>
             <div class="block">
                 <h3>文件导入与文本输入（放在最前）</h3>
-                <p>支持 Excel/CSV 导入和文本输入，AI 解析后生成可执行候选案例，再确认入库并自动执行。</p>
+                <p>支持接口文档、文本描述、Excel导入，AI 生成后进入预生成案例池，人工审核确认后再入库执行。</p>
                 <div class="form-grid">
                     <input id="aiInterfaceFile" type="file" accept=".xlsx,.xls,.csv,.json,.txt"/>
-                    <textarea id="aiInterfaceText" placeholder="支持粘贴JSON/CSV/Key:Value文本，字段包括sysId、sysName、funcNo、funcName、funcType、caseId、caseName、caseKvBase、moduleName等"></textarea>
-                    <button id="aiInterfaceGenerateBtn" type="button">AI解析并生成候选案例</button>
+                    <textarea id="aiInterfaceText" placeholder="支持文本描述 / JSON / CSV / Key:Value；可附带成功案例让AI扩展边界、异常、参数缺失场景"></textarea>
+                    <button id="aiInterfaceGenerateBtn" type="button">AI生成并写入预生成案例池</button>
                 </div>
             </div>
+            <div id="aiInterfaceMessage" class="message"></div>
+            <div class="block">
+                <h3>最近生成记录</h3>
+                <table class="table" id="aiGeneratedTempTable">
+                    <thead>
+                    <tr>
+                        <th>tempId</th>
+                        <th>generationId</th>
+                        <th>funcNo</th>
+                        <th>caseName</th>
+                        <th>状态</th>
+                        <th>生成时间</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="aiPreCases" class="panel">
+            <h2>Ai测试 · 预生成案例管理</h2>
             <div class="actions">
                 <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
-                <button id="aiInterfaceSaveRunBtn" type="button">确认入库并自动执行</button>
+                <button id="aiInterfaceSaveRunBtn" type="button">批量入库并执行</button>
+                <button id="aiInterfaceDeleteBtn" type="button">删除</button>
+                <button id="aiInterfaceRegenerateBtn" type="button">重新生成</button>
+                <button id="aiInterfaceReloadBtn" type="button">刷新</button>
                 <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
                 <select id="aiInterfaceFilterStatus">
                     <option value="all">全部状态</option>
+                    <option value="pending">仅未入库</option>
+                    <option value="stored">仅已入库</option>
                     <option value="valid">仅可入库</option>
                     <option value="invalid">仅不可入库</option>
                     <option value="selected">仅已采纳</option>
@@ -71,6 +97,7 @@
                 <thead>
                 <tr>
                     <th>选择</th>
+                    <th>tempId</th>
                     <th>来源</th>
                     <th>sysId</th>
                     <th>sysName</th>
@@ -86,13 +113,13 @@
                 </thead>
                 <tbody></tbody>
             </table>
-            <div id="aiInterfaceMessage" class="message"></div>
+            <div id="aiPreCaseMessage" class="message"></div>
             <div class="block">
                 <h3>入库结果</h3>
                 <table class="table" id="aiInterfaceSaveTable">
                     <thead>
                     <tr>
-                        <th>candidateId</th>
+                        <th>tempId</th>
                         <th>funcNo</th>
                         <th>caseId</th>
                         <th>caseName</th>
@@ -124,7 +151,7 @@
             </div>
         </section>
 
-        <section id="aiDocs" class="panel">
+        <section id="aiDocs" class="panel active">
             <h2>Ai测试 · 接口文档生成</h2>
             <div class="block">
                 <h3>接口文档导入生成（AI参与）</h3>

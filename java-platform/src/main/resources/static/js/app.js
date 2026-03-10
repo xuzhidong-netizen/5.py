@@ -32,13 +32,18 @@ const aiInterfaceText = document.getElementById("aiInterfaceText");
 const aiInterfaceGenerateBtn = document.getElementById("aiInterfaceGenerateBtn");
 const aiInterfaceSelectAllBtn = document.getElementById("aiInterfaceSelectAllBtn");
 const aiInterfaceSaveRunBtn = document.getElementById("aiInterfaceSaveRunBtn");
+const aiInterfaceDeleteBtn = document.getElementById("aiInterfaceDeleteBtn");
+const aiInterfaceRegenerateBtn = document.getElementById("aiInterfaceRegenerateBtn");
+const aiInterfaceReloadBtn = document.getElementById("aiInterfaceReloadBtn");
 const aiInterfaceFilterKeyword = document.getElementById("aiInterfaceFilterKeyword");
 const aiInterfaceFilterStatus = document.getElementById("aiInterfaceFilterStatus");
 const aiInterfaceStats = document.getElementById("aiInterfaceStats");
+const aiGeneratedTempTableBody = document.querySelector("#aiGeneratedTempTable tbody");
 const aiInterfaceTableBody = document.querySelector("#aiInterfaceTable tbody");
 const aiInterfaceSaveTableBody = document.querySelector("#aiInterfaceSaveTable tbody");
 const aiInterfaceExecutionTableBody = document.querySelector("#aiInterfaceExecutionTable tbody");
 const aiInterfaceMessage = document.getElementById("aiInterfaceMessage");
+const aiPreCaseMessage = document.getElementById("aiPreCaseMessage");
 
 const aiDocForm = document.getElementById("aiDocForm");
 const aiDocImportFile = document.getElementById("aiDocImportFile");
@@ -79,11 +84,15 @@ const aiInterfaceEditState = new Map();
 menu.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-panel]");
     if (!button) return;
-    const panelId = button.dataset.panel;
-    menu.querySelectorAll("button[data-panel]").forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    panels.forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
+    activatePanel(button.dataset.panel);
 });
+
+function activatePanel(panelId) {
+    menu.querySelectorAll("button[data-panel]").forEach((item) => {
+        item.classList.toggle("active", item.dataset.panel === panelId);
+    });
+    panels.forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
+}
 
 function formToJson(form) {
     const data = {};
@@ -212,26 +221,27 @@ function renderAiInterfaceCandidates(candidates) {
             <input
                 type="checkbox"
                 class="ai-interface-checkbox"
-                value="${item.candidateId}"
+                value="${item.tempId}"
                 ${item.valid === false ? "disabled" : ""}
                 ${item.selected ? "checked" : ""}
             >
         </td>
+        <td>${item.tempId ?? "-"}</td>
         <td>${item.source || "-"}</td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysId" value="${escapeHtml(item.sysId || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="sysName" value="${escapeHtml(item.sysName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcNo" value="${escapeHtml(item.funcNo || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcName" value="${escapeHtml(item.funcName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="funcType" value="${escapeHtml(item.funcType || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseId" value="${escapeHtml(String(item.caseId ?? ""))}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td><input class="table-input ai-interface-field" data-id="${item.candidateId}" data-field="moduleName" value="${escapeHtml(item.moduleName || "")}" ${aiInterfaceEditState.get(item.candidateId) ? "" : "disabled"}></td>
-        <td>${item.valid === false ? "不可入库" : "可入库"}<br>${item.validationMessage || "-"}</td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="sysId" value="${escapeHtml(item.sysId || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="sysName" value="${escapeHtml(item.sysName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="funcNo" value="${escapeHtml(item.funcNo || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="funcName" value="${escapeHtml(item.funcName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="funcType" value="${escapeHtml(item.funcType || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseId" value="${escapeHtml(String(item.caseId ?? ""))}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="moduleName" value="${escapeHtml(item.moduleName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td>${item.status === 1 ? "已入库" : "未入库"}<br>${item.validationMessage || item.statusMessage || "-"}</td>
         <td>
             <div class="table-actions">
-                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.candidateId}">${item.valid === false ? "不可采纳" : "采纳"}</button>
-                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.candidateId}">${aiInterfaceEditState.get(item.candidateId) ? "完成" : "修改"}</button>
-                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.candidateId}">删除</button>
+                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳"}</button>
+                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
+                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>删除</button>
             </div>
         </td>
       </tr>
@@ -243,6 +253,12 @@ function filterAiInterfaceCandidates(candidates) {
     const keyword = String(aiInterfaceFilterKeyword?.value || "").trim().toLowerCase();
     const status = String(aiInterfaceFilterStatus?.value || "all");
     return (candidates || []).filter((item) => {
+        if (status === "pending" && item.status !== 0) {
+            return false;
+        }
+        if (status === "stored" && item.status !== 1) {
+            return false;
+        }
         if (status === "valid" && !item.valid) {
             return false;
         }
@@ -272,10 +288,12 @@ function renderAiInterfaceStats(candidates) {
         return;
     }
     const total = (candidates || []).length;
-    const valid = (candidates || []).filter((item) => item.valid).length;
+    const pending = (candidates || []).filter((item) => item.status === 0).length;
+    const stored = (candidates || []).filter((item) => item.status === 1).length;
+    const valid = (candidates || []).filter((item) => item.valid && item.status === 0).length;
     const selected = (candidates || []).filter((item) => item.selected).length;
-    const invalid = total - valid;
-    aiInterfaceStats.textContent = `候选总数: ${total} | 可入库: ${valid} | 不可入库: ${invalid} | 已采纳: ${selected}`;
+    const invalid = pending - valid;
+    aiInterfaceStats.textContent = `预生成总数: ${total} | 未入库: ${pending} | 已入库: ${stored} | 可入库: ${valid} | 不可入库: ${invalid} | 已采纳: ${selected}`;
 }
 
 function escapeHtml(value) {
@@ -307,7 +325,7 @@ function setButtonBusy(button, busy, busyText) {
 function renderAiInterfaceSaveResults(items) {
     aiInterfaceSaveTableBody.innerHTML = (items || []).map((item) => `
       <tr>
-        <td>${item.candidateId || "-"}</td>
+        <td>${item.tempId ?? "-"}</td>
         <td>${item.funcNo || "-"}</td>
         <td>${item.caseId ?? "-"}</td>
         <td>${item.caseName || "-"}</td>
@@ -316,6 +334,39 @@ function renderAiInterfaceSaveResults(items) {
         <td>${item.message || "-"}</td>
       </tr>
     `).join("");
+}
+
+function renderGeneratedTempRows(tempCases) {
+    aiGeneratedTempTableBody.innerHTML = (tempCases || []).map((item) => `
+      <tr>
+        <td>${item.tempId ?? "-"}</td>
+        <td>${item.generationId || "-"}</td>
+        <td>${item.funcNo || "-"}</td>
+        <td>${item.caseName || "-"}</td>
+        <td>${item.status === 1 ? "已入库" : "未入库"}</td>
+        <td>${item.createdAt || "-"}</td>
+      </tr>
+    `).join("");
+}
+
+async function loadTempCases() {
+    const result = await http("/api/ai/interface-cases/temp");
+    const rows = Array.isArray(result.data) ? result.data : [];
+    const selectedSet = new Set(
+        latestAiInterfaceCandidates
+            .filter((item) => item.selected)
+            .map((item) => Number(item.tempId))
+            .filter((item) => Number.isFinite(item))
+    );
+    latestAiInterfaceCandidates = rows.map((item) => {
+        validateAiInterfaceCandidate(item);
+        return {
+            ...item,
+            selected: selectedSet.has(Number(item.tempId))
+        };
+    });
+    renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+    return latestAiInterfaceCandidates;
 }
 
 function renderAiInterfaceExecution(execution) {
@@ -534,9 +585,9 @@ aiInterfaceTableBody.addEventListener("input", (event) => {
     if (!input) {
         return;
     }
-    const candidateId = input.dataset.id;
+    const tempId = Number(input.dataset.id);
     const field = input.dataset.field;
-    const candidate = latestAiInterfaceCandidates.find((item) => item.candidateId === candidateId);
+    const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
     if (!candidate || !field) {
         return;
     }
@@ -553,7 +604,8 @@ aiInterfaceTableBody.addEventListener("change", (event) => {
     if (!checkbox) {
         return;
     }
-    const candidate = latestAiInterfaceCandidates.find((item) => item.candidateId === checkbox.value);
+    const tempId = Number(checkbox.value);
+    const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
     if (!candidate) {
         return;
     }
@@ -561,21 +613,71 @@ aiInterfaceTableBody.addEventListener("change", (event) => {
     renderAiInterfaceStats(latestAiInterfaceCandidates);
 });
 
-aiInterfaceTableBody.addEventListener("click", (event) => {
+async function updateTempCase(candidate) {
+    const payload = {
+        tempId: candidate.tempId,
+        sysId: candidate.sysId,
+        sysName: candidate.sysName,
+        funcNo: candidate.funcNo,
+        funcName: candidate.funcName,
+        funcType: candidate.funcType,
+        subFuncType: candidate.subFuncType,
+        funcParamMatch: candidate.funcParamMatch,
+        funcHttpUrl: candidate.funcHttpUrl,
+        funcRequestMethod: candidate.funcRequestMethod,
+        funcRemark: candidate.funcRemark,
+        caseId: Number.isFinite(Number(candidate.caseId)) ? Number(candidate.caseId) : null,
+        caseName: candidate.caseName,
+        caseType: candidate.caseType,
+        runFlag: candidate.runFlag,
+        caseKvBase: candidate.caseKvBase,
+        caseKvDynamic: candidate.caseKvDynamic,
+        caseCheckFunction: candidate.caseCheckFunction,
+        moduleName: candidate.moduleName,
+        caseRemark: candidate.caseRemark,
+        businessGoal: candidate.businessGoal,
+        scenario: candidate.scenario
+    };
+    const result = await http("/api/ai/interface-cases/temp/update", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    });
+    return result.data;
+}
+
+function collectSelectedTempIds() {
+    return latestAiInterfaceCandidates
+        .filter((item) => item.selected && item.valid && item.status === 0)
+        .map((item) => Number(item.tempId))
+        .filter((item) => Number.isFinite(item));
+}
+
+async function deleteTempCases(tempIds) {
+    await http("/api/ai/interface-cases/temp/delete", {
+        method: "POST",
+        body: JSON.stringify({ tempIds })
+    });
+}
+
+aiInterfaceTableBody.addEventListener("click", async (event) => {
     const button = event.target.closest(".ai-interface-action");
     if (!button) {
         return;
     }
     const action = button.dataset.action;
-    const candidateId = button.dataset.id;
-    const candidate = latestAiInterfaceCandidates.find((item) => item.candidateId === candidateId);
+    const tempId = Number(button.dataset.id);
+    const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
     if (!candidate) {
         return;
     }
 
     if (action === "adopt") {
         if (!candidate.valid) {
-            aiInterfaceMessage.textContent = "该行必填字段未完整，不能采纳";
+            aiPreCaseMessage.textContent = "该行必填字段未完整，不能采纳";
+            return;
+        }
+        if (candidate.status === 1) {
+            aiPreCaseMessage.textContent = "已入库案例不需要再次采纳";
             return;
         }
         candidate.selected = !candidate.selected;
@@ -584,20 +686,56 @@ aiInterfaceTableBody.addEventListener("click", (event) => {
     }
 
     if (action === "edit") {
-        const editing = Boolean(aiInterfaceEditState.get(candidateId));
-        if (editing) {
-            validateAiInterfaceCandidate(candidate);
+        if (candidate.status === 1) {
+            aiPreCaseMessage.textContent = "已入库案例不允许修改";
+            return;
         }
-        aiInterfaceEditState.set(candidateId, !editing);
-        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+        const editing = Boolean(aiInterfaceEditState.get(tempId));
+        if (!editing) {
+            aiInterfaceEditState.set(tempId, true);
+            renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+            return;
+        }
+        setButtonBusy(button, true, "保存中...");
+        try {
+            validateAiInterfaceCandidate(candidate);
+            if (!candidate.valid) {
+                aiPreCaseMessage.textContent = "必填字段不完整，无法保存修改";
+                return;
+            }
+            const updated = await updateTempCase(candidate);
+            const index = latestAiInterfaceCandidates.findIndex((item) => Number(item.tempId) === tempId);
+            if (index >= 0 && updated) {
+                latestAiInterfaceCandidates[index] = {
+                    ...updated,
+                    selected: latestAiInterfaceCandidates[index].selected
+                };
+                validateAiInterfaceCandidate(latestAiInterfaceCandidates[index]);
+            }
+            aiPreCaseMessage.textContent = `tempId=${tempId} 修改成功`;
+        } catch (error) {
+            aiPreCaseMessage.textContent = `修改失败：${error.message}`;
+        } finally {
+            aiInterfaceEditState.set(tempId, false);
+            setButtonBusy(button, false);
+            renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+        }
         return;
     }
 
     if (action === "delete") {
-        latestAiInterfaceCandidates = latestAiInterfaceCandidates.filter((item) => item.candidateId !== candidateId);
-        aiInterfaceEditState.delete(candidateId);
-        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
-        aiInterfaceMessage.textContent = "已删除该候选案例";
+        setButtonBusy(button, true, "删除中...");
+        try {
+            await deleteTempCases([tempId]);
+            latestAiInterfaceCandidates = latestAiInterfaceCandidates.filter((item) => Number(item.tempId) !== tempId);
+            aiInterfaceEditState.delete(tempId);
+            renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+            aiPreCaseMessage.textContent = `tempId=${tempId} 已删除`;
+        } catch (error) {
+            aiPreCaseMessage.textContent = `删除失败：${error.message}`;
+        } finally {
+            setButtonBusy(button, false);
+        }
     }
 });
 
@@ -647,17 +785,16 @@ aiInterfaceGenerateBtn.addEventListener("click", async () => {
         });
         const data = result.data || {};
         latestAiInterfaceGenerationId = data.generationId || "";
-        latestAiInterfaceCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+        latestAiInterfaceCandidates = [];
         latestAiInterfaceSaveItems = [];
         aiInterfaceEditState.clear();
-        latestAiInterfaceCandidates.forEach((item) => {
-            validateAiInterfaceCandidate(item);
-            item.selected = Boolean(item.valid);
-        });
-        renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+        renderGeneratedTempRows(Array.isArray(data.tempCases) ? data.tempCases : []);
+        await loadTempCases();
+        activatePanel("aiPreCases");
         renderAiInterfaceSaveResults([]);
         renderAiInterfaceExecution(null);
-        aiInterfaceMessage.textContent = `${result.msg}，候选 ${latestAiInterfaceCandidates.length} 条，AI引擎=${data.aiEngine || "N/A"}`;
+        aiInterfaceMessage.textContent = `${result.msg}，预生成 ${Array.isArray(data.tempCases) ? data.tempCases.length : 0} 条，AI引擎=${data.aiEngine || "N/A"}`;
+        aiPreCaseMessage.textContent = "请在预生成案例管理中审核、采纳并入库";
     } catch (error) {
         aiInterfaceMessage.textContent = `生成失败：${error.message}`;
     } finally {
@@ -666,9 +803,9 @@ aiInterfaceGenerateBtn.addEventListener("click", async () => {
 });
 
 aiInterfaceSelectAllBtn.addEventListener("click", () => {
-    const visible = filterAiInterfaceCandidates(latestAiInterfaceCandidates).filter((item) => item.valid);
+    const visible = filterAiInterfaceCandidates(latestAiInterfaceCandidates).filter((item) => item.valid && item.status === 0);
     if (visible.length === 0) {
-        aiInterfaceMessage.textContent = "当前没有可选候选案例";
+        aiPreCaseMessage.textContent = "当前没有可采纳的待入库案例";
         return;
     }
     const allChecked = visible.every((item) => item.selected);
@@ -679,25 +816,18 @@ aiInterfaceSelectAllBtn.addEventListener("click", () => {
 });
 
 aiInterfaceSaveRunBtn.addEventListener("click", async () => {
-    if (!latestAiInterfaceGenerationId) {
-        aiInterfaceMessage.textContent = "请先执行AI生成";
-        return;
-    }
-    const selectedIds = latestAiInterfaceCandidates
-        .filter((item) => item.selected && item.valid)
-        .map((item) => item.candidateId)
-        .filter((item) => item);
+    const selectedIds = collectSelectedTempIds();
     if (selectedIds.length === 0) {
-        aiInterfaceMessage.textContent = "请至少勾选一个候选案例";
+        aiPreCaseMessage.textContent = "请至少采纳一个待入库案例";
         return;
     }
     setButtonBusy(aiInterfaceSaveRunBtn, true, "入库执行中...");
     try {
-        const result = await http("/api/ai/interface-cases/save", {
+        const result = await http("/api/ai/interface-cases/temp/store", {
             method: "POST",
             body: JSON.stringify({
                 generationId: latestAiInterfaceGenerationId,
-                candidateIds: selectedIds,
+                tempIds: selectedIds,
                 autoExecute: true
             })
         });
@@ -706,15 +836,73 @@ aiInterfaceSaveRunBtn.addEventListener("click", async () => {
         renderAiInterfaceSaveResults(latestAiInterfaceSaveItems);
         renderAiInterfaceExecution(data.execution || null);
         const hisId = data.executionHisId ? `，已触发执行 hisId=${data.executionHisId}` : "";
-        aiInterfaceMessage.textContent = `${result.msg}，接口新增 ${data.functionCreatedCount || 0}，案例新增 ${data.caseCreatedCount || 0}${hisId}`;
+        aiPreCaseMessage.textContent = `${result.msg}，接口新增 ${data.functionCreatedCount || 0}，案例新增 ${data.caseCreatedCount || 0}${hisId}`;
         if (data.execution) {
             executionOutput.textContent = JSON.stringify(data.execution, null, 2);
         }
+        await loadTempCases();
         await refreshAll();
     } catch (error) {
-        aiInterfaceMessage.textContent = `入库执行失败：${error.message}`;
+        aiPreCaseMessage.textContent = `入库执行失败：${error.message}`;
     } finally {
         setButtonBusy(aiInterfaceSaveRunBtn, false);
+    }
+});
+
+aiInterfaceDeleteBtn.addEventListener("click", async () => {
+    const selectedIds = collectSelectedTempIds();
+    if (selectedIds.length === 0) {
+        aiPreCaseMessage.textContent = "请先勾选需要删除的预生成案例";
+        return;
+    }
+    setButtonBusy(aiInterfaceDeleteBtn, true, "删除中...");
+    try {
+        const result = await http("/api/ai/interface-cases/temp/delete", {
+            method: "POST",
+            body: JSON.stringify({ tempIds: selectedIds })
+        });
+        await loadTempCases();
+        aiPreCaseMessage.textContent = `${result.msg}，删除 ${result.data?.affectedCount ?? 0} 条`;
+    } catch (error) {
+        aiPreCaseMessage.textContent = `删除失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiInterfaceDeleteBtn, false);
+    }
+});
+
+aiInterfaceRegenerateBtn.addEventListener("click", async () => {
+    const selectedIds = collectSelectedTempIds();
+    if (selectedIds.length === 0) {
+        aiPreCaseMessage.textContent = "请先勾选需要再生的预生成案例";
+        return;
+    }
+    setButtonBusy(aiInterfaceRegenerateBtn, true, "再生中...");
+    try {
+        const result = await http("/api/ai/interface-cases/temp/regenerate", {
+            method: "POST",
+            body: JSON.stringify({
+                tempIds: selectedIds,
+                copiesPerCase: 1
+            })
+        });
+        await loadTempCases();
+        aiPreCaseMessage.textContent = `${result.msg}，新增 ${result.data?.affectedCount ?? 0} 条再生案例`;
+    } catch (error) {
+        aiPreCaseMessage.textContent = `再生失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiInterfaceRegenerateBtn, false);
+    }
+});
+
+aiInterfaceReloadBtn.addEventListener("click", async () => {
+    setButtonBusy(aiInterfaceReloadBtn, true, "刷新中...");
+    try {
+        const rows = await loadTempCases();
+        aiPreCaseMessage.textContent = `刷新成功，共 ${rows.length} 条预生成案例`;
+    } catch (error) {
+        aiPreCaseMessage.textContent = `刷新失败：${error.message}`;
+    } finally {
+        setButtonBusy(aiInterfaceReloadBtn, false);
     }
 });
 
@@ -1055,6 +1243,11 @@ aiResultOutput.textContent = "执行后可在这里查看批次结果";
 renderAiInterfaceCandidates([]);
 renderAiInterfaceSaveResults([]);
 renderAiInterfaceExecution(null);
+renderGeneratedTempRows([]);
+
+loadTempCases().catch(() => {
+    aiPreCaseMessage.textContent = "暂无预生成案例";
+});
 
 loadAiResults().catch(() => {
     aiResultOutput.textContent = "暂无执行结果";

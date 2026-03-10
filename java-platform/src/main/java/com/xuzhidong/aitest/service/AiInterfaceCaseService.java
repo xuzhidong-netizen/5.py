@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,7 +23,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AiInterfaceCaseService {
@@ -35,6 +38,9 @@ public class AiInterfaceCaseService {
     private final ExecutionService executionService;
 
     private final Map<String, GenerationSession> generationSessions = new ConcurrentHashMap<>();
+    private final AtomicLong tempCaseIdGenerator = new AtomicLong(300000);
+    private final Map<Long, PreGeneratedCase> tempCases = new ConcurrentHashMap<>();
+    private final List<Long> tempCaseOrder = new CopyOnWriteArrayList<>();
 
     public AiInterfaceCaseService(PlatformStore store,
                                   LlmClient llmClient,
@@ -75,6 +81,7 @@ public class AiInterfaceCaseService {
         String generationId = "gen_" + UUID.randomUUID().toString().replace("-", "");
         GenerationSession session = new GenerationSession(generationId, merged, prompt);
         generationSessions.put(generationId, session);
+        List<PreGeneratedCase> generatedTempCases = cachePreGeneratedCases(generationId, merged);
 
         return new GenerateResult(
             generationId,
@@ -84,7 +91,8 @@ public class AiInterfaceCaseService {
             !aiCandidates.isEmpty(),
             !aiCandidates.isEmpty() ? "REMOTE_LLM" : "LOCAL_RULE_AI",
             seed,
-            parsedRows.size()
+            parsedRows.size(),
+            generatedTempCases
         );
     }
 
@@ -186,6 +194,334 @@ public class AiInterfaceCaseService {
         result.setExecutionHisId(executionHisId);
         result.setExecution(execution);
         return result;
+    }
+
+    public List<PreGeneratedCase> listTempCases(Integer status) {
+        return tempCaseOrder.stream()
+            .map(tempCases::get)
+            .filter(item -> item != null)
+            .filter(item -> status == null || status < 0 || item.getStatus() == status)
+            .sorted(Comparator.comparing(PreGeneratedCase::getTempId).reversed())
+            .toList();
+    }
+
+    public PreGeneratedCase updateTempCase(TempCaseUpdateRequest request) {
+        if (request.tempId() == null) {
+            throw new IllegalArgumentException("tempId不能为空");
+        }
+        PreGeneratedCase tempCase = tempCases.get(request.tempId());
+        if (tempCase == null) {
+            throw new IllegalArgumentException("预生成案例不存在: " + request.tempId());
+        }
+        if (tempCase.getStatus() == 1) {
+            throw new IllegalArgumentException("已入库案例不允许修改");
+        }
+
+        patchText(request.sysId(), tempCase::setSysId);
+        patchText(request.sysName(), tempCase::setSysName);
+        patchText(request.funcNo(), tempCase::setFuncNo);
+        patchText(request.funcName(), tempCase::setFuncName);
+        patchText(request.funcType(), tempCase::setFuncType);
+        patchText(request.subFuncType(), tempCase::setSubFuncType);
+        patchText(request.funcParamMatch(), tempCase::setFuncParamMatch);
+        patchText(request.funcHttpUrl(), tempCase::setFuncHttpUrl);
+        patchText(request.funcRequestMethod(), tempCase::setFuncRequestMethod);
+        patchText(request.funcRemark(), tempCase::setFuncRemark);
+        if (request.caseId() != null) {
+            tempCase.setCaseId(request.caseId());
+        }
+        patchText(request.caseName(), tempCase::setCaseName);
+        patchText(request.caseType(), tempCase::setCaseType);
+        patchText(request.runFlag(), tempCase::setRunFlag);
+        patchText(request.caseKvBase(), tempCase::setCaseKvBase);
+        patchText(request.caseKvDynamic(), tempCase::setCaseKvDynamic);
+        patchText(request.caseCheckFunction(), tempCase::setCaseCheckFunction);
+        patchText(request.moduleName(), tempCase::setModuleName);
+        patchText(request.caseRemark(), tempCase::setCaseRemark);
+        patchText(request.businessGoal(), tempCase::setBusinessGoal);
+        patchText(request.scenario(), tempCase::setScenario);
+        tempCase.setUpdatedAt(LocalDateTime.now());
+
+        Candidate candidate = toCandidate(tempCase);
+        validateCandidate(candidate);
+        tempCase.setValid(candidate.isValid());
+        tempCase.setValidationMessage(candidate.getValidationMessage());
+        tempCase.setStatus(0);
+        tempCase.setStatusMessage("待人工审核");
+        return tempCase;
+    }
+
+    public BatchActionResult deleteTempCases(List<Long> tempIds) {
+        if (tempIds == null || tempIds.isEmpty()) {
+            throw new IllegalArgumentException("请选择要删除的预生成案例");
+        }
+        int deleted = 0;
+        for (Long tempId : tempIds) {
+            if (tempId == null) {
+                continue;
+            }
+            PreGeneratedCase removed = tempCases.remove(tempId);
+            if (removed != null) {
+                tempCaseOrder.remove(tempId);
+                deleted += 1;
+            }
+        }
+        BatchActionResult result = new BatchActionResult();
+        result.setAction("delete");
+        result.setAffectedCount(deleted);
+        result.setMessage("删除完成");
+        return result;
+    }
+
+    public BatchActionResult regenerateTempCases(List<Long> tempIds, Integer copiesPerCase) {
+        int copies = copiesPerCase == null || copiesPerCase < 1 ? 1 : Math.min(copiesPerCase, 3);
+        List<PreGeneratedCase> source = filterTempCasesByIds(tempIds, false);
+        if (source.isEmpty()) {
+            throw new IllegalArgumentException("未找到可再生的预生成案例");
+        }
+        int created = 0;
+        for (PreGeneratedCase item : source) {
+            for (int i = 0; i < copies; i++) {
+                Candidate base = toCandidate(item);
+                base.setCandidateId("cand_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+                base.setSource("REGENERATED");
+                base.setCaseId(nextCaseId());
+                base.setCaseName(base.getCaseName() + "_再生" + (i + 1));
+                base.setScenario(valueOrDefault(base.getScenario(), "标准交易场景") + "_再生");
+                validateCandidate(base);
+                cachePreGeneratedCase(item.getGenerationId(), base);
+                created += 1;
+            }
+        }
+        BatchActionResult result = new BatchActionResult();
+        result.setAction("regenerate");
+        result.setAffectedCount(created);
+        result.setMessage("再生完成");
+        return result;
+    }
+
+    public SaveResult storeTempCases(TempStoreRequest request) {
+        List<PreGeneratedCase> selected = filterTempCasesByIds(request.tempIds(), true);
+        if (selected.isEmpty()) {
+            throw new IllegalArgumentException("未选中待入库的预生成案例");
+        }
+
+        List<SaveItemResult> items = new ArrayList<>();
+        int functionCreatedCount = 0;
+        int caseCreatedCount = 0;
+
+        for (PreGeneratedCase tempCase : selected) {
+            Candidate candidate = toCandidate(tempCase);
+            validateCandidate(candidate);
+            tempCase.setValid(candidate.isValid());
+            tempCase.setValidationMessage(candidate.getValidationMessage());
+            SaveItemResult item = persistCandidate(candidate);
+            item.setTempId(tempCase.getTempId());
+            items.add(item);
+
+            tempCase.setUpdatedAt(LocalDateTime.now());
+            if (item.isSuccess()) {
+                tempCase.setStatus(1);
+                tempCase.setStatusMessage("已入库");
+                if (item.isFunctionCreated()) {
+                    functionCreatedCount += 1;
+                }
+                caseCreatedCount += 1;
+            } else {
+                tempCase.setStatus(0);
+                tempCase.setStatusMessage(item.getMessage());
+            }
+        }
+
+        String executionHisId = null;
+        VersionExecution execution = null;
+        if (Boolean.TRUE.equals(request.autoExecute()) && caseCreatedCount > 0) {
+            execution = executionService.createAndRunExecution(
+                "AI接口自动化",
+                "latest",
+                ExecutionMode.AGENT,
+                "AI预生成案例人工确认后入库执行"
+            );
+            executionHisId = execution.getHisId();
+        }
+
+        SaveResult result = new SaveResult();
+        result.setGenerationId(request.generationId());
+        result.setItems(items);
+        result.setSelectedCount(selected.size());
+        result.setFunctionCreatedCount(functionCreatedCount);
+        result.setCaseCreatedCount(caseCreatedCount);
+        result.setExecutionHisId(executionHisId);
+        result.setExecution(execution);
+        return result;
+    }
+
+    private SaveItemResult persistCandidate(Candidate candidate) {
+        SaveItemResult item = new SaveItemResult();
+        item.setCandidateId(candidate.getCandidateId());
+        item.setFuncNo(candidate.getFuncNo());
+        item.setCaseId(candidate.getCaseId());
+        item.setCaseName(candidate.getCaseName());
+
+        if (!candidate.isValid()) {
+            item.setSuccess(false);
+            item.setMessage("候选数据不完整：" + valueOrDefault(candidate.getValidationMessage(), "缺少必填字段"));
+            return item;
+        }
+
+        boolean functionCreated = false;
+        try {
+            if (store.findFunction(candidate.getSysId(), candidate.getFuncNo()).isEmpty()) {
+                AiFunction function = toFunction(candidate);
+                store.addFunction(function);
+                functionCreated = true;
+            }
+        } catch (IllegalArgumentException ex) {
+            if (store.findFunction(candidate.getSysId(), candidate.getFuncNo()).isEmpty()) {
+                item.setSuccess(false);
+                item.setMessage("接口入库失败：" + ex.getMessage());
+                return item;
+            }
+        }
+
+        try {
+            AiCase aiCase = toCase(candidate);
+            AiCase savedCase = store.addCase(aiCase);
+            item.setSuccess(true);
+            item.setFunctionCreated(functionCreated);
+            item.setCaseRecordId(savedCase.getId());
+            item.setMessage("入库成功");
+            return item;
+        } catch (IllegalArgumentException ex) {
+            item.setSuccess(false);
+            item.setFunctionCreated(functionCreated);
+            item.setMessage("案例入库失败：" + ex.getMessage());
+            return item;
+        }
+    }
+
+    private void validateCandidate(Candidate candidate) {
+        boolean valid = !isBlank(candidate.getSysId())
+            && !isBlank(candidate.getSysName())
+            && !isBlank(candidate.getFuncNo())
+            && !isBlank(candidate.getFuncName())
+            && !isBlank(candidate.getFuncType())
+            && !isBlank(candidate.getModuleName())
+            && candidate.getCaseId() != null
+            && !isBlank(candidate.getCaseName())
+            && !isBlank(candidate.getCaseKvBase());
+        candidate.setValid(valid);
+        candidate.setValidationMessage(valid ? "可入库" : "缺少必填字段（sysId/sysName/funcNo/funcName/funcType/caseId/caseName/caseKvBase/moduleName）");
+    }
+
+    private List<PreGeneratedCase> cachePreGeneratedCases(String generationId, List<Candidate> candidates) {
+        List<PreGeneratedCase> result = new ArrayList<>();
+        for (Candidate candidate : candidates) {
+            result.add(cachePreGeneratedCase(generationId, candidate));
+        }
+        return result;
+    }
+
+    private PreGeneratedCase cachePreGeneratedCase(String generationId, Candidate candidate) {
+        long tempId = tempCaseIdGenerator.incrementAndGet();
+        PreGeneratedCase tempCase = new PreGeneratedCase();
+        tempCase.setTempId(tempId);
+        tempCase.setGenerationId(generationId);
+        tempCase.setStatus(0);
+        tempCase.setStatusMessage("待人工审核");
+        tempCase.setCreatedAt(LocalDateTime.now());
+        tempCase.setUpdatedAt(LocalDateTime.now());
+        applyCandidateToTemp(tempCase, candidate);
+        tempCases.put(tempId, tempCase);
+        tempCaseOrder.add(0, tempId);
+        return tempCase;
+    }
+
+    private List<PreGeneratedCase> filterTempCasesByIds(List<Long> tempIds, boolean onlyPending) {
+        List<PreGeneratedCase> all = tempCaseOrder.stream()
+            .map(tempCases::get)
+            .filter(item -> item != null)
+            .toList();
+        if (tempIds == null || tempIds.isEmpty()) {
+            if (!onlyPending) {
+                return all;
+            }
+            return all.stream().filter(item -> item.getStatus() == 0).toList();
+        }
+        Set<Long> selected = new LinkedHashSet<>();
+        for (Long tempId : tempIds) {
+            if (tempId != null) {
+                selected.add(tempId);
+            }
+        }
+        return all.stream()
+            .filter(item -> selected.contains(item.getTempId()))
+            .filter(item -> !onlyPending || item.getStatus() == 0)
+            .toList();
+    }
+
+    private Candidate toCandidate(PreGeneratedCase tempCase) {
+        Candidate candidate = new Candidate();
+        candidate.setCandidateId(tempCase.getCandidateId());
+        candidate.setSource(tempCase.getSource());
+        candidate.setValid(tempCase.isValid());
+        candidate.setValidationMessage(tempCase.getValidationMessage());
+        candidate.setSysId(tempCase.getSysId());
+        candidate.setSysName(tempCase.getSysName());
+        candidate.setFuncNo(tempCase.getFuncNo());
+        candidate.setFuncName(tempCase.getFuncName());
+        candidate.setFuncType(tempCase.getFuncType());
+        candidate.setSubFuncType(tempCase.getSubFuncType());
+        candidate.setFuncParamMatch(tempCase.getFuncParamMatch());
+        candidate.setFuncHttpUrl(tempCase.getFuncHttpUrl());
+        candidate.setFuncRequestMethod(tempCase.getFuncRequestMethod());
+        candidate.setFuncRemark(tempCase.getFuncRemark());
+        candidate.setCaseId(tempCase.getCaseId());
+        candidate.setCaseName(tempCase.getCaseName());
+        candidate.setCaseType(tempCase.getCaseType());
+        candidate.setRunFlag(tempCase.getRunFlag());
+        candidate.setCaseKvBase(tempCase.getCaseKvBase());
+        candidate.setCaseKvDynamic(tempCase.getCaseKvDynamic());
+        candidate.setCaseCheckFunction(tempCase.getCaseCheckFunction());
+        candidate.setModuleName(tempCase.getModuleName());
+        candidate.setCaseRemark(tempCase.getCaseRemark());
+        candidate.setBusinessGoal(tempCase.getBusinessGoal());
+        candidate.setScenario(tempCase.getScenario());
+        return candidate;
+    }
+
+    private void applyCandidateToTemp(PreGeneratedCase tempCase, Candidate candidate) {
+        tempCase.setCandidateId(candidate.getCandidateId());
+        tempCase.setSource(candidate.getSource());
+        tempCase.setValid(candidate.isValid());
+        tempCase.setValidationMessage(candidate.getValidationMessage());
+        tempCase.setSysId(candidate.getSysId());
+        tempCase.setSysName(candidate.getSysName());
+        tempCase.setFuncNo(candidate.getFuncNo());
+        tempCase.setFuncName(candidate.getFuncName());
+        tempCase.setFuncType(candidate.getFuncType());
+        tempCase.setSubFuncType(candidate.getSubFuncType());
+        tempCase.setFuncParamMatch(candidate.getFuncParamMatch());
+        tempCase.setFuncHttpUrl(candidate.getFuncHttpUrl());
+        tempCase.setFuncRequestMethod(candidate.getFuncRequestMethod());
+        tempCase.setFuncRemark(candidate.getFuncRemark());
+        tempCase.setCaseId(candidate.getCaseId());
+        tempCase.setCaseName(candidate.getCaseName());
+        tempCase.setCaseType(candidate.getCaseType());
+        tempCase.setRunFlag(candidate.getRunFlag());
+        tempCase.setCaseKvBase(candidate.getCaseKvBase());
+        tempCase.setCaseKvDynamic(candidate.getCaseKvDynamic());
+        tempCase.setCaseCheckFunction(candidate.getCaseCheckFunction());
+        tempCase.setModuleName(candidate.getModuleName());
+        tempCase.setCaseRemark(candidate.getCaseRemark());
+        tempCase.setBusinessGoal(candidate.getBusinessGoal());
+        tempCase.setScenario(candidate.getScenario());
+    }
+
+    private void patchText(String value, java.util.function.Consumer<String> consumer) {
+        if (value != null) {
+            consumer.accept(value);
+        }
     }
 
     private Candidate buildSeedCandidate() {
@@ -635,6 +971,35 @@ public class AiInterfaceCaseService {
     public record SaveRequest(String generationId, List<String> candidateIds, Boolean autoExecute) {
     }
 
+    public record TempStoreRequest(String generationId, List<Long> tempIds, Boolean autoExecute) {
+    }
+
+    public record TempCaseUpdateRequest(
+        Long tempId,
+        String sysId,
+        String sysName,
+        String funcNo,
+        String funcName,
+        String funcType,
+        String subFuncType,
+        String funcParamMatch,
+        String funcHttpUrl,
+        String funcRequestMethod,
+        String funcRemark,
+        Long caseId,
+        String caseName,
+        String caseType,
+        String runFlag,
+        String caseKvBase,
+        String caseKvDynamic,
+        String caseCheckFunction,
+        String moduleName,
+        String caseRemark,
+        String businessGoal,
+        String scenario
+    ) {
+    }
+
     private record GenerationSession(
         String generationId,
         List<Candidate> candidates,
@@ -650,8 +1015,39 @@ public class AiInterfaceCaseService {
         boolean remoteLlmUsed,
         String aiEngine,
         Candidate seedCase,
-        int inputRowCount
+        int inputRowCount,
+        List<PreGeneratedCase> tempCases
     ) {
+    }
+
+    public static class BatchActionResult {
+        private String action;
+        private int affectedCount;
+        private String message;
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String action) {
+            this.action = action;
+        }
+
+        public int getAffectedCount() {
+            return affectedCount;
+        }
+
+        public void setAffectedCount(int affectedCount) {
+            this.affectedCount = affectedCount;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
     }
 
     public static class SaveResult {
@@ -721,6 +1117,7 @@ public class AiInterfaceCaseService {
     }
 
     public static class SaveItemResult {
+        private Long tempId;
         private String candidateId;
         private String funcNo;
         private Long caseId;
@@ -729,6 +1126,14 @@ public class AiInterfaceCaseService {
         private boolean functionCreated;
         private Long caseRecordId;
         private String message;
+
+        public Long getTempId() {
+            return tempId;
+        }
+
+        public void setTempId(Long tempId) {
+            this.tempId = tempId;
+        }
 
         public String getCandidateId() {
             return candidateId;
@@ -792,6 +1197,290 @@ public class AiInterfaceCaseService {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+    }
+
+    public static class PreGeneratedCase {
+        private Long tempId;
+        private String generationId;
+        private Integer status;
+        private String statusMessage;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+
+        private String candidateId;
+        private String source;
+        private boolean valid;
+        private String validationMessage;
+
+        private String sysId;
+        private String sysName;
+        private String funcNo;
+        private String funcName;
+        private String funcType;
+        private String subFuncType;
+        private String funcParamMatch;
+        private String funcHttpUrl;
+        private String funcRequestMethod;
+        private String funcRemark;
+        private Long caseId;
+        private String caseName;
+        private String caseType;
+        private String runFlag;
+        private String caseKvBase;
+        private String caseKvDynamic;
+        private String caseCheckFunction;
+        private String moduleName;
+        private String caseRemark;
+        private String businessGoal;
+        private String scenario;
+
+        public Long getTempId() {
+            return tempId;
+        }
+
+        public void setTempId(Long tempId) {
+            this.tempId = tempId;
+        }
+
+        public String getGenerationId() {
+            return generationId;
+        }
+
+        public void setGenerationId(String generationId) {
+            this.generationId = generationId;
+        }
+
+        public Integer getStatus() {
+            return status;
+        }
+
+        public void setStatus(Integer status) {
+            this.status = status;
+        }
+
+        public String getStatusMessage() {
+            return statusMessage;
+        }
+
+        public void setStatusMessage(String statusMessage) {
+            this.statusMessage = statusMessage;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+        }
+
+        public LocalDateTime getUpdatedAt() {
+            return updatedAt;
+        }
+
+        public void setUpdatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+        }
+
+        public String getCandidateId() {
+            return candidateId;
+        }
+
+        public void setCandidateId(String candidateId) {
+            this.candidateId = candidateId;
+        }
+
+        public String getSource() {
+            return source;
+        }
+
+        public void setSource(String source) {
+            this.source = source;
+        }
+
+        public boolean isValid() {
+            return valid;
+        }
+
+        public void setValid(boolean valid) {
+            this.valid = valid;
+        }
+
+        public String getValidationMessage() {
+            return validationMessage;
+        }
+
+        public void setValidationMessage(String validationMessage) {
+            this.validationMessage = validationMessage;
+        }
+
+        public String getSysId() {
+            return sysId;
+        }
+
+        public void setSysId(String sysId) {
+            this.sysId = sysId;
+        }
+
+        public String getSysName() {
+            return sysName;
+        }
+
+        public void setSysName(String sysName) {
+            this.sysName = sysName;
+        }
+
+        public String getFuncNo() {
+            return funcNo;
+        }
+
+        public void setFuncNo(String funcNo) {
+            this.funcNo = funcNo;
+        }
+
+        public String getFuncName() {
+            return funcName;
+        }
+
+        public void setFuncName(String funcName) {
+            this.funcName = funcName;
+        }
+
+        public String getFuncType() {
+            return funcType;
+        }
+
+        public void setFuncType(String funcType) {
+            this.funcType = funcType;
+        }
+
+        public String getSubFuncType() {
+            return subFuncType;
+        }
+
+        public void setSubFuncType(String subFuncType) {
+            this.subFuncType = subFuncType;
+        }
+
+        public String getFuncParamMatch() {
+            return funcParamMatch;
+        }
+
+        public void setFuncParamMatch(String funcParamMatch) {
+            this.funcParamMatch = funcParamMatch;
+        }
+
+        public String getFuncHttpUrl() {
+            return funcHttpUrl;
+        }
+
+        public void setFuncHttpUrl(String funcHttpUrl) {
+            this.funcHttpUrl = funcHttpUrl;
+        }
+
+        public String getFuncRequestMethod() {
+            return funcRequestMethod;
+        }
+
+        public void setFuncRequestMethod(String funcRequestMethod) {
+            this.funcRequestMethod = funcRequestMethod;
+        }
+
+        public String getFuncRemark() {
+            return funcRemark;
+        }
+
+        public void setFuncRemark(String funcRemark) {
+            this.funcRemark = funcRemark;
+        }
+
+        public Long getCaseId() {
+            return caseId;
+        }
+
+        public void setCaseId(Long caseId) {
+            this.caseId = caseId;
+        }
+
+        public String getCaseName() {
+            return caseName;
+        }
+
+        public void setCaseName(String caseName) {
+            this.caseName = caseName;
+        }
+
+        public String getCaseType() {
+            return caseType;
+        }
+
+        public void setCaseType(String caseType) {
+            this.caseType = caseType;
+        }
+
+        public String getRunFlag() {
+            return runFlag;
+        }
+
+        public void setRunFlag(String runFlag) {
+            this.runFlag = runFlag;
+        }
+
+        public String getCaseKvBase() {
+            return caseKvBase;
+        }
+
+        public void setCaseKvBase(String caseKvBase) {
+            this.caseKvBase = caseKvBase;
+        }
+
+        public String getCaseKvDynamic() {
+            return caseKvDynamic;
+        }
+
+        public void setCaseKvDynamic(String caseKvDynamic) {
+            this.caseKvDynamic = caseKvDynamic;
+        }
+
+        public String getCaseCheckFunction() {
+            return caseCheckFunction;
+        }
+
+        public void setCaseCheckFunction(String caseCheckFunction) {
+            this.caseCheckFunction = caseCheckFunction;
+        }
+
+        public String getModuleName() {
+            return moduleName;
+        }
+
+        public void setModuleName(String moduleName) {
+            this.moduleName = moduleName;
+        }
+
+        public String getCaseRemark() {
+            return caseRemark;
+        }
+
+        public void setCaseRemark(String caseRemark) {
+            this.caseRemark = caseRemark;
+        }
+
+        public String getBusinessGoal() {
+            return businessGoal;
+        }
+
+        public void setBusinessGoal(String businessGoal) {
+            this.businessGoal = businessGoal;
+        }
+
+        public String getScenario() {
+            return scenario;
+        }
+
+        public void setScenario(String scenario) {
+            this.scenario = scenario;
         }
     }
 
