@@ -13,6 +13,7 @@ import com.xuzhidong.aitest.ai.service.ApiDefinitionImportService;
 import com.xuzhidong.aitest.ai.service.ApiDocumentService;
 import com.xuzhidong.aitest.ai.service.TestCaseService;
 import com.xuzhidong.aitest.model.AiCase;
+import com.xuzhidong.aitest.service.AiInterfaceCaseService;
 import com.xuzhidong.aitest.service.PlatformStore;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -152,7 +153,7 @@ public class AiTestController {
             }
         }
         for (AiCase item : platformStore.listCases()) {
-            if (item.getCaseId() != null) {
+            if (item.getCaseId() != null && isAiInterfaceCase(item)) {
                 merged.putIfAbsent(item.getCaseId(), toExecutionCase(item));
             }
         }
@@ -175,7 +176,7 @@ public class AiTestController {
         if (mapped.size() < caseIds.size()) {
             Map<Long, AiCase> platformCaseMap = new LinkedHashMap<>();
             for (AiCase item : platformStore.listCases()) {
-                if (item.getCaseId() != null) {
+                if (item.getCaseId() != null && isAiInterfaceCase(item)) {
                     platformCaseMap.put(item.getCaseId(), item);
                 }
             }
@@ -213,5 +214,10 @@ public class AiTestController {
         dto.setStatus("1".equals(aiCase.getRunFlag()) ? "ENABLED" : "DISABLED");
         dto.setSource("AI_INTERFACE_CASE");
         return dto;
+    }
+
+    private boolean isAiInterfaceCase(AiCase aiCase) {
+        return aiCase.getCaseRemark() != null
+            && aiCase.getCaseRemark().contains(AiInterfaceCaseService.AI_INTERFACE_CASE_TAG);
     }
 }

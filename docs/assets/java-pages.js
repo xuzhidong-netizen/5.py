@@ -1,4 +1,5 @@
 const storageKey = "java-pages-platform-state-v2";
+const aiInterfaceCaseTag = "[AI_INTERFACE_CASE]";
 
 const menu = document.getElementById("menu");
 const panels = Array.from(document.querySelectorAll(".panel"));
@@ -1055,16 +1056,31 @@ function toExecutableCase(caseItem) {
     caseName: caseItem.caseName,
     caseType: caseItem.caseType || "正例",
     status: caseItem.runFlag === "0" ? "DISABLED" : "ENABLED",
-    source: "AI_INTERFACE_CASE",
+    source: caseItem.source || "AI_INTERFACE_CASE",
     requestBody: caseItem.caseKvBase || "{}"
   };
 }
 
 function loadExecutableCases() {
-  latestExecutableCases = (state.cases || [])
-    .slice()
-    .sort((a, b) => Number(b.caseId || 0) - Number(a.caseId || 0))
+  const merged = new Map();
+  const interfaceCases = (state.cases || [])
+    .filter((item) => item && (
+      item.source === "AI_INTERFACE_CASE"
+      || String(item.caseRemark || "").includes(aiInterfaceCaseTag)
+    ))
     .map(toExecutableCase);
+  interfaceCases.forEach((item) => {
+    if (item.caseId != null) {
+      merged.set(Number(item.caseId), item);
+    }
+  });
+  (latestGeneratedCases || []).forEach((item) => {
+    if (item && item.caseId != null) {
+      merged.set(Number(item.caseId), item);
+    }
+  });
+  latestExecutableCases = Array.from(merged.values())
+    .sort((a, b) => Number(b.caseId || 0) - Number(a.caseId || 0));
   renderAiCases(latestExecutableCases);
   return latestExecutableCases;
 }
@@ -1381,6 +1397,8 @@ function submitCase(data) {
     funcType: functionRef.funcType,
     subFuncType: functionRef.subFuncType,
     moduleName: data.moduleName,
+    caseRemark: data.caseRemark || "",
+    source: data.source || "MANUAL",
     createdAt: nowText()
   };
   state.cases.push(record);
@@ -1460,7 +1478,11 @@ function storeAiTempCases(tempIds, autoExecute = true) {
       caseKvBase: candidate.caseKvBase,
       caseKvDynamic: candidate.caseKvDynamic,
       funcNo: candidate.funcNo,
-      moduleName: candidate.moduleName
+      moduleName: candidate.moduleName,
+      caseRemark: String(candidate.caseRemark || "").includes(aiInterfaceCaseTag)
+        ? candidate.caseRemark
+        : `${aiInterfaceCaseTag} ${candidate.caseRemark || ""}`.trim(),
+      source: "AI_INTERFACE_CASE"
     });
 
     if (caseResult.code === 200) {
@@ -1873,10 +1895,10 @@ aiCaseForm.addEventListener("submit", (event) => {
     const definition = buildApiDefinition(aiCaseForm);
     latestGeneratedCases = generateCases(definition);
     persist();
-    renderAiCases(latestGeneratedCases);
+    const executable = loadExecutableCases();
     aiCaseOutput.textContent = JSON.stringify(latestGeneratedCases, null, 2);
     aiCaseMessage.textContent = `生成成功，共 ${latestGeneratedCases.length} 条测试用例`;
-    aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+    aiExecuteMessage.textContent = `已同步 ${executable.length} 条用例到执行列表`;
   } catch (error) {
     aiCaseMessage.textContent = `测试用例生成失败：${error.message}`;
   }
@@ -1908,7 +1930,7 @@ aiCaseImportGenerateBtn.addEventListener("click", () => {
     }
     latestGeneratedCases = definitions.flatMap((definition) => generateCases(definition));
     persist();
-    renderAiCases(latestGeneratedCases);
+    const executable = loadExecutableCases();
     const result = {
       apiCount: definitions.length,
       caseCount: latestGeneratedCases.length,
@@ -1921,7 +1943,7 @@ aiCaseImportGenerateBtn.addEventListener("click", () => {
     };
     aiCaseOutput.textContent = JSON.stringify(result, null, 2);
     aiCaseMessage.textContent = `导入成功，识别 ${result.apiCount} 个接口，生成 ${result.caseCount} 条测试用例。AI参与=true，引擎=${result.aiEngines.join(", ")}`;
-    aiExecuteMessage.textContent = `已同步 ${latestGeneratedCases.length} 条用例到执行列表`;
+    aiExecuteMessage.textContent = `已同步 ${executable.length} 条用例到执行列表`;
   } catch (error) {
     aiCaseMessage.textContent = `导入生成失败：${error.message}`;
   }

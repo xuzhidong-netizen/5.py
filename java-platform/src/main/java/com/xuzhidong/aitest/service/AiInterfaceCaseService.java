@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class AiInterfaceCaseService {
 
     private static final DateTimeFormatter CASE_ID_FORMATTER = DateTimeFormatter.ofPattern("yyMMddHHmmss");
+    public static final String AI_INTERFACE_CASE_TAG = "[AI_INTERFACE_CASE]";
 
     private final PlatformStore store;
     private final LlmClient llmClient;
@@ -724,7 +725,13 @@ public class AiInterfaceCaseService {
         aiCase.setCaseKvBase(candidate.getCaseKvBase());
         aiCase.setCaseKvDynamic(candidate.getCaseKvDynamic());
         aiCase.setCaseCheckFunction(valueOrDefault(candidate.getCaseCheckFunction(), "517184"));
-        aiCase.setCaseRemark(candidate.getCaseRemark());
+        String caseRemark = valueOrDefault(candidate.getCaseRemark(), "");
+        if (caseRemark.isBlank()) {
+            caseRemark = AI_INTERFACE_CASE_TAG;
+        } else if (!caseRemark.contains(AI_INTERFACE_CASE_TAG)) {
+            caseRemark = AI_INTERFACE_CASE_TAG + " " + caseRemark;
+        }
+        aiCase.setCaseRemark(caseRemark);
         aiCase.setFuncNo(candidate.getFuncNo());
         aiCase.setFuncName(candidate.getFuncName());
         aiCase.setFuncType(candidate.getFuncType());
