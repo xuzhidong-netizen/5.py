@@ -25,19 +25,9 @@
       <details class="menu-group menu-group-other" open>
         <summary>其他功能</summary>
         <div class="menu-group-items">
-          <button data-panel="overview">一、项目概述</button>
-          <button data-panel="environment">二、环境配置</button>
-          <button data-panel="deploy">三、部署流程</button>
-          <button data-panel="cases">四.1 新增案例 (T_AI_CASE)</button>
-          <button data-panel="functions">四.2 新增接口 (T_AI_FUNCTION)</button>
-          <button data-panel="versionQuery">四.3 查询执行版本 / 功能号</button>
-          <button data-panel="execution">四.5 执行流程中心</button>
-          <button data-panel="logs">五、日志管理</button>
-          <button data-panel="urls">六、常用网址</button>
-          <button data-panel="troubleshooting">七、故障处理</button>
-          <button data-panel="security">八、安全措施</button>
-          <button data-panel="maintenance">九、维护计划</button>
-          <button data-panel="appendix">十、附录</button>
+          <button data-panel="otherAiAdmin">AI测试后台管理</button>
+          <button data-panel="otherReports">报表中心</button>
+          <button data-panel="otherLogs">日志中心</button>
         </div>
       </details>
     </nav>
@@ -284,6 +274,278 @@
         </div>
       </div>
       <pre id="aiResultOutput"></pre>
+    </section>
+
+    <section id="otherAiAdmin" class="panel">
+      <h2>其他功能 · AI测试后台管理</h2>
+      <p>该模块用于支撑 AI测试五大业务功能（文档、案例、管理、执行、结果）的配置、治理与运维。</p>
+      <div class="block">
+        <h3>五大功能支撑清单</h3>
+        <table class="table">
+          <thead>
+          <tr>
+            <th>AI测试功能</th>
+            <th>后台管理能力</th>
+            <th>目标</th>
+            <th>状态</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td>1. 文档</td>
+            <td>文档模板管理 / 字段映射管理</td>
+            <td>统一文档生成口径，减少手工维护</td>
+            <td>已启用</td>
+          </tr>
+          <tr>
+            <td>2. 案例</td>
+            <td>案例生成配置 / 参数规则管理</td>
+            <td>提高生成质量，减少不可执行案例</td>
+            <td>已启用</td>
+          </tr>
+          <tr>
+            <td>3. 管理</td>
+            <td>案例状态流转策略（待采纳/已入库）</td>
+            <td>支撑审核式入库与回退流程</td>
+            <td>已启用</td>
+          </tr>
+          <tr>
+            <td>4. 执行</td>
+            <td>执行策略管理（串并行/超时/重试）</td>
+            <td>提升执行稳定性与可观测性</td>
+            <td>已启用</td>
+          </tr>
+          <tr>
+            <td>5. 结果</td>
+            <td>结果清理策略 / 归档策略</td>
+            <td>控制存储成本并保留关键审计记录</td>
+            <td>已启用</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="block">
+        <h3>配置中心能力列表</h3>
+        <table class="table">
+          <thead>
+          <tr>
+            <th>配置模块</th>
+            <th>核心配置项</th>
+            <th>说明</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td>文档模板管理</td>
+            <td>模板编码、模板类型、字段映射、启停状态</td>
+            <td>支撑接口文档导入、生成、导出统一化</td>
+          </tr>
+          <tr>
+            <td>案例生成配置</td>
+            <td>Prompt模板、输入规则、输出规则、最大生成条数</td>
+            <td>支撑 AI 生成案例质量控制</td>
+          </tr>
+          <tr>
+            <td>参数规则管理</td>
+            <td>动态参数规则、默认值策略、字段校验规则</td>
+            <td>解决“可生成不可执行”的前置问题</td>
+          </tr>
+          <tr>
+            <td>执行策略管理</td>
+            <td>执行模式、并发度、超时、重试、Mock 开关</td>
+            <td>统一执行行为并支持平台兼容</td>
+          </tr>
+          <tr>
+            <td>结果清理策略</td>
+            <td>保留天数、归档规则、失败高亮、导出策略</td>
+            <td>保障结果可追溯且可控</td>
+          </tr>
+          <tr>
+            <td>模型配置管理</td>
+            <td>模型地址、密钥、温度、Token 限制、超时</td>
+            <td>支持多模型切换与环境隔离</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="otherReports" class="panel">
+      <h2>其他功能 · 报表中心</h2>
+      <p>围绕 AI测试流程提供文档、案例、入库、执行、结果五类统计报表。</p>
+      <div class="cards">
+        <div class="card">
+          <div class="label">文档生成成功率</div>
+          <div class="value">98.6%</div>
+        </div>
+        <div class="card">
+          <div class="label">案例采纳率</div>
+          <div class="value">72.4%</div>
+        </div>
+        <div class="card">
+          <div class="label">入库通过率</div>
+          <div class="value">95.1%</div>
+        </div>
+        <div class="card">
+          <div class="label">执行通过率</div>
+          <div class="value">91.8%</div>
+        </div>
+        <div class="card">
+          <div class="label">近7日失败趋势</div>
+          <div class="value">-12.3%</div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>报表目录</h3>
+        <table class="table">
+          <thead>
+          <tr>
+            <th>报表名称</th>
+            <th>统计口径</th>
+            <th>关键指标</th>
+            <th>更新频率</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td>文档生成报表</td>
+            <td>按接口/按用户/按模板</td>
+            <td>生成次数、成功率、失败原因 TOP</td>
+            <td>T+0 小时级</td>
+          </tr>
+          <tr>
+            <td>案例生成报表</td>
+            <td>按生成来源（文本/Excel/OpenAPI）</td>
+            <td>生成量、平均条数、采纳率、删除率</td>
+            <td>T+0 小时级</td>
+          </tr>
+          <tr>
+            <td>案例入库报表</td>
+            <td>按接口/模块/负责人</td>
+            <td>待采纳数、已入库数、取消入库次数</td>
+            <td>T+0 小时级</td>
+          </tr>
+          <tr>
+            <td>执行统计报表</td>
+            <td>按接口/按案例/按批次</td>
+            <td>执行次数、失败率、平均耗时</td>
+            <td>T+0 小时级</td>
+          </tr>
+          <tr>
+            <td>结果趋势报表</td>
+            <td>按日/周/月趋势</td>
+            <td>通过率趋势、异常接口 TOP10</td>
+            <td>T+1 天级</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="otherLogs" class="panel">
+      <h2>其他功能 · 日志中心</h2>
+      <p>日志中心统一承载操作审计、接口调用、AI生成、执行过程、异常归集五类日志。</p>
+      <div class="block">
+        <h3>日志分类</h3>
+        <table class="table">
+          <thead>
+          <tr>
+            <th>日志类型</th>
+            <th>记录内容</th>
+            <th>典型用途</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td>操作日志</td>
+            <td>操作人、模块、动作、结果、时间、IP</td>
+            <td>审计追踪、变更回溯</td>
+          </tr>
+          <tr>
+            <td>接口调用日志</td>
+            <td>请求地址、请求参数、响应、耗时、状态码</td>
+            <td>排查接口错误与超时</td>
+          </tr>
+          <tr>
+            <td>AI生成日志</td>
+            <td>模板、模型、输入摘要、输出摘要、token消耗</td>
+            <td>定位 AI 质量与成本问题</td>
+          </tr>
+          <tr>
+            <td>执行日志</td>
+            <td>批次号、案例ID、断言结果、耗时、错误信息</td>
+            <td>定位执行失败场景</td>
+          </tr>
+          <tr>
+            <td>异常日志</td>
+            <td>异常类型、堆栈摘要、影响范围、恢复状态</td>
+            <td>故障恢复与稳定性治理</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="query-grid">
+        <div class="block">
+          <h3>最近操作日志</h3>
+          <table class="table">
+            <thead>
+            <tr>
+              <th>操作人</th>
+              <th>模块</th>
+              <th>动作</th>
+              <th>结果</th>
+              <th>时间</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td>admin</td>
+              <td>案例管理</td>
+              <td>取消入库</td>
+              <td>成功</td>
+              <td>2026-03-11 10:22:13</td>
+            </tr>
+            <tr>
+              <td>tester01</td>
+              <td>执行中心</td>
+              <td>执行批次</td>
+              <td>成功</td>
+              <td>2026-03-11 10:19:48</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="block">
+          <h3>最近异常日志</h3>
+          <table class="table">
+            <thead>
+            <tr>
+              <th>异常类型</th>
+              <th>模块</th>
+              <th>摘要</th>
+              <th>状态</th>
+              <th>时间</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td>AI生成失败</td>
+              <td>案例生成</td>
+              <td>模型超时（30s）</td>
+              <td>已恢复</td>
+              <td>2026-03-11 09:58:07</td>
+            </tr>
+            <tr>
+              <td>执行失败</td>
+              <td>执行中心</td>
+              <td>目标环境 50000 无响应</td>
+              <td>处理中</td>
+              <td>2026-03-11 09:42:55</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section id="overview" class="panel">
