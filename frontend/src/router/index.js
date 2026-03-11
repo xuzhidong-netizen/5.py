@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import store from '../store'
 import AppShell from '../components/AppShell.vue'
 import LoginView from '../views/LoginView.vue'
@@ -50,8 +50,13 @@ const routes = [
   }
 ]
 
+const routerMode = import.meta.env.VITE_ROUTER_MODE || 'history'
+const history = routerMode === 'hash'
+  ? createWebHashHistory(import.meta.env.BASE_URL)
+  : createWebHistory(import.meta.env.BASE_URL)
+
 const router = createRouter({
-  history: createWebHistory(),
+  history,
   routes
 })
 
