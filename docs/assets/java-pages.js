@@ -3161,7 +3161,7 @@ if (busForm) {
 if (loadVersionsBtn) {
   loadVersionsBtn.addEventListener("click", () => {
     if (versionResult) {
-      versionResult.textContent = JSON.stringify(state.versions, null, 2);
+      versionResult.textContent = `支持版本数量：${state.versions.length}`;
     }
   });
 }
@@ -3169,7 +3169,7 @@ if (loadVersionsBtn) {
 if (loadFunctionLookupBtn) {
   loadFunctionLookupBtn.addEventListener("click", () => {
     if (functionLookupResult) {
-      functionLookupResult.textContent = JSON.stringify(functionLookup(), null, 2);
+      functionLookupResult.textContent = `功能号数量：${functionLookup().length}`;
     }
   });
 }
@@ -3179,10 +3179,10 @@ if (legacyConsoleEnabled) {
 }
 renderAiResults(state.aiRuns);
 if (versionResult) {
-  versionResult.textContent = JSON.stringify(state.versions, null, 2);
+  versionResult.textContent = `支持版本数量：${state.versions.length}`;
 }
 if (functionLookupResult) {
-  functionLookupResult.textContent = JSON.stringify(functionLookup(), null, 2);
+  functionLookupResult.textContent = `功能号数量：${functionLookup().length}`;
 }
 if (executionOutput) {
   executionOutput.textContent = "Pages 演示模式已就绪";
