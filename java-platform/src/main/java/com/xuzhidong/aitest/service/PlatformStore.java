@@ -100,6 +100,22 @@ public class PlatformStore {
             .toList();
     }
 
+    public Optional<AiCase> findCaseByRecordId(Long recordId) {
+        if (recordId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(cases.get(recordId));
+    }
+
+    public Optional<AiCase> findCaseByBusinessKey(String sysId, Long caseId) {
+        if (sysId == null || caseId == null) {
+            return Optional.empty();
+        }
+        return cases.values().stream()
+            .filter(item -> Objects.equals(item.getSysId(), sysId) && Objects.equals(item.getCaseId(), caseId))
+            .findFirst();
+    }
+
     public synchronized AiCase addCase(AiCase input) {
         Optional<AiFunction> function = findFunction(input.getSysId(), input.getFuncNo());
         if (function.isEmpty()) {
@@ -119,6 +135,73 @@ public class PlatformStore {
         input.setCreatedAt(LocalDateTime.now());
         cases.put(id, input);
         return input;
+    }
+
+    public synchronized AiCase updateCase(Long recordId, AiCase input) {
+        if (recordId == null) {
+            throw new IllegalArgumentException("案例记录ID不能为空");
+        }
+        AiCase existing = cases.get(recordId);
+        if (existing == null) {
+            throw new IllegalArgumentException("案例记录不存在");
+        }
+        if (isBlank(input.getSysId()) || input.getCaseId() == null) {
+            throw new IllegalArgumentException("sysId 与 caseId 不能为空");
+        }
+        if (isBlank(input.getFuncNo())) {
+            throw new IllegalArgumentException("funcNo 不能为空");
+        }
+        if (findFunction(input.getSysId(), input.getFuncNo()).isEmpty()) {
+            throw new IllegalArgumentException("请先在接口表 T_AI_FUNCTION 中补充功能号信息");
+        }
+
+        Optional<AiCase> duplicate = cases.values().stream()
+            .filter(item -> !Objects.equals(item.getId(), recordId))
+            .filter(item -> Objects.equals(item.getSysId(), input.getSysId()) && Objects.equals(item.getCaseId(), input.getCaseId()))
+            .findFirst();
+        if (duplicate.isPresent()) {
+            throw new IllegalArgumentException("案例记录已存在,请重新检查");
+        }
+
+        existing.setSysId(input.getSysId());
+        existing.setSysName(input.getSysName());
+        existing.setCaseId(input.getCaseId());
+        existing.setCaseName(input.getCaseName());
+        existing.setCaseType(input.getCaseType());
+        existing.setRunFlag(input.getRunFlag());
+        existing.setCaseKvBase(input.getCaseKvBase());
+        existing.setCaseKvDynamic(input.getCaseKvDynamic());
+        existing.setCaseExpectResult(input.getCaseExpectResult());
+        existing.setCaseCheckErrorNo(input.getCaseCheckErrorNo());
+        existing.setCaseCheckFunction(input.getCaseCheckFunction());
+        existing.setCaseRemark(input.getCaseRemark());
+        existing.setFuncNo(input.getFuncNo());
+        existing.setFuncName(input.getFuncName());
+        existing.setFuncType(input.getFuncType());
+        existing.setSubFuncType(input.getSubFuncType());
+        existing.setModuleName(input.getModuleName());
+        return existing;
+    }
+
+    public synchronized AiCase updateCaseByBusinessKey(String sysId, Long caseId, AiCase input) {
+        AiCase existing = findCaseByBusinessKey(sysId, caseId)
+            .orElseThrow(() -> new IllegalArgumentException("案例记录不存在"));
+        return updateCase(existing.getId(), input);
+    }
+
+    public synchronized boolean deleteCaseByRecordId(Long recordId) {
+        if (recordId == null) {
+            return false;
+        }
+        return cases.remove(recordId) != null;
+    }
+
+    public synchronized boolean deleteCaseByBusinessKey(String sysId, Long caseId) {
+        Optional<AiCase> existing = findCaseByBusinessKey(sysId, caseId);
+        if (existing.isEmpty()) {
+            return false;
+        }
+        return cases.remove(existing.get().getId()) != null;
     }
 
     public List<VersionSupport> listVersionSupports() {
@@ -187,5 +270,9 @@ public class PlatformStore {
 
     public void setDevopsAuthorization(String devopsAuthorization) {
         this.devopsAuthorization = devopsAuthorization;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

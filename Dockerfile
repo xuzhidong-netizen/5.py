@@ -1,15 +1,12 @@
-FROM python:3.11-slim
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+COPY backend/pom.xml backend/pom.xml
+COPY backend/src backend/src
+WORKDIR /workspace/backend
+RUN mvn -q -DskipTests package
 
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-COPY pyproject.toml README.md ./
-COPY app ./app
-
-RUN pip install --no-cache-dir .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY --from=build /workspace/backend/target/autotest-backend-2.0.0.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
