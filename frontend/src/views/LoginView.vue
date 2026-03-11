@@ -29,20 +29,33 @@
           </el-form>
         </el-tab-pane>
       </el-tabs>
+      <div class="api-config">
+        <el-divider>后端 API 地址</el-divider>
+        <el-input v-model="apiBase" placeholder="例如 https://your-backend.example.com" />
+        <div class="api-config-actions">
+          <el-button type="primary" plain @click="saveApiBase">保存地址</el-button>
+          <el-button @click="clearApiBase">清空</el-button>
+        </div>
+        <p class="api-config-hint">
+          GitHub Pages 仅托管前端，登录/执行等功能需连接后端 API。
+        </p>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
+import { getApiBase, isGithubPagesHost, setApiBase } from '../api/http'
 
 const activeTab = ref('login')
 const submitting = ref(false)
 const loginForm = reactive({ username: 'admin', password: 'admin123' })
 const registerForm = reactive({ username: '', password: '' })
+const apiBase = ref(getApiBase())
 
 const store = useStore()
 const router = useRouter()
@@ -72,6 +85,24 @@ async function handleRegister() {
     submitting.value = false
   }
 }
+
+function saveApiBase() {
+  setApiBase(apiBase.value)
+  apiBase.value = getApiBase()
+  ElMessage.success('后端 API 地址已保存')
+}
+
+function clearApiBase() {
+  setApiBase('')
+  apiBase.value = ''
+  ElMessage.info('后端 API 地址已清空')
+}
+
+onMounted(() => {
+  if (isGithubPagesHost() && !apiBase.value) {
+    ElMessage.warning('请先配置“后端 API 地址”，否则会出现 405/404 请求错误')
+  }
+})
 </script>
 
 <style scoped>
@@ -102,6 +133,22 @@ async function handleRegister() {
   margin: auto;
   width: min(420px, 86%);
   border-radius: 14px;
+}
+
+.api-config {
+  margin-top: 12px;
+}
+
+.api-config-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.api-config-hint {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
 }
 
 @media (max-width: 960px) {
