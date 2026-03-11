@@ -1,863 +1,1066 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>5.py 经典接口测试自动化平台</title>
-  <link rel="stylesheet" href="./assets/java-pages.css">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>5.py 经典接口测试自动化平台</title>
+    <link rel="stylesheet" href="./assets/java-pages.css">
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
-    <h1>5.py 接口平台</h1>
-    <p class="subtitle">GitHub Pages 静态演示版</p>
-    <nav class="menu" id="menu">
-      <div class="menu-group">
-        <div class="menu-group-title">Ai测试</div>
-        <div class="menu-group-items">
-          <button data-panel="aiDocs" class="active">接口文档生成</button>
-          <button data-panel="aiInterfaceCases">AI生成接口案例</button>
-          <button data-panel="aiPreCases">待采纳案例</button>
-          <button data-panel="aiPublishedCases">已入库案例</button>
-          <button data-panel="aiExecute">用例执行</button>
-          <button data-panel="aiResults">执行结果</button>
+    <aside class="sidebar">
+        <h1>5.py 接口平台</h1>
+        <p class="subtitle">GitHub Pages 静态演示版</p>
+        <nav class="menu" id="menu">
+            <div class="menu-group">
+                <div class="menu-group-title">AI测试</div>
+                <div class="menu-group-items">
+                    <button data-panel="aiDocs" class="active">① 接口文档</button>
+                    <button data-panel="aiInterfaceCases">② AI生成案例</button>
+                    <button data-panel="aiCaseManage">③ AI生成案例管理</button>
+                    <button data-panel="aiExecute">④ 用例执行</button>
+                    <button data-panel="aiResults">⑤ 执行结果</button>
+                </div>
+            </div>
+            <div class="menu-group menu-group-other">
+                <div class="menu-group-title">平台支撑</div>
+                <div class="menu-group-items">
+                    <button data-panel="otherAiAdmin">后台管理</button>
+                    <button data-panel="otherReports">报表中心</button>
+                    <button data-panel="otherLogs">日志中心</button>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="aiInterfaceCases" class="panel" data-flow-stage="generate">
+            <h2>AI测试 · ② AI生成案例</h2>
+            <div class="flow-hint">
+                <span class="flow-label">接口测试流程</span>
+                <div class="flow-steps">
+                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="manage">案例管理</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="execute">执行</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="result">结果</span>
+                </div>
+            </div>
+            <div class="block">
+                <h3>生成配置</h3>
+                <div class="query-grid">
+                    <div class="form-grid">
+                        <label class="field-label">接口文档来源</label>
+                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="doc" checked>从文档选择</label>
+                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="text">文本输入</label>
+                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="excel">Excel导入</label>
+                    </div>
+                    <div class="form-grid">
+                        <label class="field-label" for="aiInterfaceGenerateCount">生成数量</label>
+                        <input id="aiInterfaceGenerateCount" type="number" min="1" max="100" value="10"/>
+                        <label class="field-label">生成类型</label>
+                        <label class="checkbox-inline"><input id="aiCaseTypeNormal" type="checkbox" checked>正常场景</label>
+                        <label class="checkbox-inline"><input id="aiCaseTypeAbnormal" type="checkbox" checked>异常场景</label>
+                        <label class="checkbox-inline"><input id="aiCaseTypeBoundary" type="checkbox" checked>边界场景</label>
+                    </div>
+                </div>
+            </div>
+            <div class="block">
+                <h3>文件导入与文本输入</h3>
+                <p>支持接口文档、文本描述、Excel导入。AI 生成后进入“待采纳案例”，审核后再入库执行。</p>
+                <div class="form-grid">
+                    <input id="aiInterfaceFile" type="file" accept=".xlsx,.xls,.csv,.json,.txt"/>
+                    <textarea id="aiInterfaceText" placeholder="支持文本描述 / JSON / CSV / Key:Value；可附带成功案例让AI扩展边界、异常、参数缺失场景"></textarea>
+                    <button id="aiInterfaceGenerateBtn" type="button">AI生成案例</button>
+                </div>
+            </div>
+            <div id="aiInterfaceMessage" class="message"></div>
+            <div id="aiInterfaceGenerationStatus" class="stats-line"></div>
+            <div class="block">
+                <h3>最近生成记录</h3>
+                <table class="table" id="aiGeneratedTempTable">
+                    <thead>
+                    <tr>
+                        <th>tempId</th>
+                        <th>generationId</th>
+                        <th>funcNo</th>
+                        <th>caseName</th>
+                        <th>状态</th>
+                        <th>生成时间</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="aiCaseManage" class="panel" data-flow-stage="manage">
+            <h2>AI测试 · ③ AI生成案例管理</h2>
+            <div class="flow-hint">
+                <span class="flow-label">接口测试流程</span>
+                <div class="flow-steps">
+                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="manage">案例管理</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="execute">执行</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="result">结果</span>
+                </div>
+            </div>
+            <p class="panel-hint">在一个页面内统一管理“待采纳案例”和“已入库案例”。</p>
+            <div class="tabs" id="aiCaseManageTabs">
+                <button id="aiManagePendingTabBtn" type="button" class="tab-btn active" data-manage-tab="pending">待采纳案例</button>
+                <button id="aiManagePublishedTabBtn" type="button" class="tab-btn" data-manage-tab="published">已入库案例</button>
+            </div>
+
+            <div id="aiManagePendingTab" class="case-manage-panel active" data-manage-tab-panel="pending">
+                <div class="actions">
+                    <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
+                    <button id="aiInterfaceSaveRunBtn" type="button">批量采纳入库并执行</button>
+                    <button id="aiInterfaceDeleteBtn" type="button">批量删除</button>
+                    <button id="aiInterfaceRegenerateBtn" type="button">重新生成</button>
+                    <button id="aiInterfaceReloadBtn" type="button">刷新</button>
+                    <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
+                    <select id="aiInterfaceFilterStatus">
+                        <option value="pending">仅未入库</option>
+                        <option value="valid">仅可入库</option>
+                        <option value="invalid">仅不可入库</option>
+                        <option value="selected">仅已采纳</option>
+                    </select>
+                </div>
+                <div id="aiInterfaceStats" class="stats-line"></div>
+                <table class="table" id="aiInterfaceTable">
+                    <thead>
+                    <tr>
+                        <th>选择</th>
+                        <th>tempId</th>
+                        <th>来源</th>
+                        <th>sysId</th>
+                        <th>sysName</th>
+                        <th>funcNo</th>
+                        <th>funcName</th>
+                        <th>funcType</th>
+                        <th>caseId</th>
+                        <th>caseName</th>
+                        <th>moduleName</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="aiPreCaseMessage" class="message"></div>
+                <div class="block">
+                    <h3>入库结果</h3>
+                    <table class="table" id="aiInterfaceSaveTable">
+                        <thead>
+                        <tr>
+                            <th>tempId</th>
+                            <th>funcNo</th>
+                            <th>caseId</th>
+                            <th>caseName</th>
+                            <th>接口新增</th>
+                            <th>结果</th>
+                            <th>说明</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="block">
+                    <h3>自动执行结果</h3>
+                    <table class="table" id="aiInterfaceExecutionTable">
+                        <thead>
+                        <tr>
+                            <th>hisId</th>
+                            <th>状态</th>
+                            <th>模式</th>
+                            <th>版本</th>
+                            <th>总数</th>
+                            <th>成功</th>
+                            <th>失败</th>
+                            <th>通过率</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="aiManagePublishedTab" class="case-manage-panel" data-manage-tab-panel="published">
+                <div class="actions">
+                    <button id="aiPublishedCreateBtn" type="button">新增案例</button>
+                    <button id="aiPublishedSelectAllBtn" type="button">全选/取消全选</button>
+                    <button id="aiPublishedDeleteBtn" type="button">批量删除</button>
+                    <button id="aiPublishedCancelBtn" type="button">批量取消入库</button>
+                    <button id="aiPublishedReloadBtn" type="button">刷新</button>
+                    <input id="aiPublishedFilterKeyword" type="text" placeholder="搜索 caseName / funcNo / sysId"/>
+                </div>
+                <div id="aiPublishedStats" class="stats-line"></div>
+                <table class="table" id="aiPublishedTable">
+                    <thead>
+                    <tr>
+                        <th>选择</th>
+                        <th>tempId</th>
+                        <th>caseName</th>
+                        <th>funcNo</th>
+                        <th>请求方式</th>
+                        <th>接口地址</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="aiPublishedMessage" class="message"></div>
+            </div>
+        </section>
+
+        <section id="aiDocs" class="panel active" data-flow-stage="docs">
+            <h2>AI测试 · ① 接口文档</h2>
+            <div class="flow-hint">
+                <span class="flow-label">接口测试流程</span>
+                <div class="flow-steps">
+                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="manage">案例管理</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="execute">执行</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="result">结果</span>
+                </div>
+            </div>
+            <div class="tabs" id="aiDocModeTabs">
+                <button type="button" class="tab-btn active" data-tab-target="aiDocTextMode">文本生成</button>
+                <button type="button" class="tab-btn" data-tab-target="aiDocImportMode">Excel导入</button>
+                <button type="button" class="tab-btn" data-tab-target="aiDocTemplateMode">示例模板</button>
+            </div>
+            <div id="aiDocTextMode" class="tab-panel active">
+                <div class="query-grid doc-grid">
+                    <form id="aiDocForm" class="form-grid block">
+                        <h3>文本生成</h3>
+                        <input name="apiName" value="下单接口" placeholder="接口名称" required/>
+                        <input name="apiPath" value="/api/order/create" placeholder="接口地址" required/>
+                        <select name="method">
+                            <option>POST</option>
+                            <option>GET</option>
+                            <option>PUT</option>
+                            <option>DELETE</option>
+                        </select>
+                        <textarea name="requestParams" placeholder="请求参数(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
+                        <textarea name="responseParams" placeholder="返回字段(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
+                        <button type="submit">生成接口文档</button>
+                    </form>
+                    <div class="block">
+                        <h3>输入示例</h3>
+                        <pre>接口：下单接口
+路径：/api/order
+方法：POST
+
+参数：
+account
+stockCode
+price
+qty</pre>
+                    </div>
+                </div>
+            </div>
+            <div id="aiDocImportMode" class="tab-panel">
+                <div class="block">
+                    <h3>Excel/文档导入生成（AI参与）</h3>
+                    <p>支持导入 OpenAPI JSON/YAML 文档，AI 自动生成文档结构与说明。</p>
+                    <div class="form-grid">
+                        <input id="aiDocImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
+                        <textarea id="aiDocImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
+                        <div class="actions">
+                            <button id="aiDocImportGenerateBtn" type="button">导入文档并生成接口文档</button>
+                            <button id="aiDocDownloadTemplateBtn" type="button">下载Excel模板</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="aiDocTemplateMode" class="tab-panel">
+                <div class="block">
+                    <h3>示例模板</h3>
+                    <p>首次使用建议先下载模板，按模板填充后再导入，可减少字段错误。</p>
+                    <pre>{
+  "apiName": "下单接口",
+  "apiPath": "/api/order",
+  "method": "POST",
+  "requestParams": [
+    {"name":"account","type":"string","required":true},
+    {"name":"stockCode","type":"string","required":true},
+    {"name":"price","type":"number","required":true},
+    {"name":"qty","type":"integer","required":true}
+  ],
+  "responseParams": [
+    {"name":"code","type":"string","required":true},
+    {"name":"message","type":"string","required":true}
+  ]
+}</pre>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="aiDocExportExcelBtn" type="button">导出当前接口文档Excel</button>
+                <button id="aiDocImportExportExcelBtn" type="button">导出导入结果Excel</button>
+            </div>
+            <div id="aiDocMessage" class="message"></div>
+            <div class="query-grid">
+                <div class="block">
+                    <h3>接口信息卡片</h3>
+                    <div id="aiDocInfoCard" class="kv-grid">
+                        <div class="kv-item"><span class="kv-label">接口名称</span><span id="aiDocInfoName" class="kv-value">-</span></div>
+                        <div class="kv-item"><span class="kv-label">接口路径</span><span id="aiDocInfoPath" class="kv-value">-</span></div>
+                        <div class="kv-item"><span class="kv-label">请求方式</span><span id="aiDocInfoMethod" class="kv-value">-</span></div>
+                        <div class="kv-item"><span class="kv-label">AI引擎</span><span id="aiDocInfoEngine" class="kv-value">-</span></div>
+                    </div>
+                    <h3>请求参数表格</h3>
+                    <table class="table" id="aiDocRequestTable">
+                        <thead>
+                        <tr>
+                            <th>参数</th>
+                            <th>类型</th>
+                            <th>必填</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="block">
+                    <h3>返回字段表格</h3>
+                    <table class="table" id="aiDocResponseTable">
+                        <thead>
+                        <tr>
+                            <th>字段</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <h3>导入接口列表</h3>
+                    <table class="table" id="aiDocImportTable">
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>接口名称</th>
+                            <th>接口路径</th>
+                            <th>请求方式</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <section id="aiExecute" class="panel" data-flow-stage="execute">
+            <h2>AI测试 · ④ 用例执行</h2>
+            <div class="flow-hint">
+                <span class="flow-label">接口测试流程</span>
+                <div class="flow-steps">
+                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="manage">案例管理</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="execute">执行</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="result">结果</span>
+                </div>
+            </div>
+            <div class="block">
+                <h3>执行配置</h3>
+                <div class="actions">
+                    <label class="checkbox-inline"><input id="aiExecuteModeSerial" type="radio" name="aiExecuteMode" value="serial">串行</label>
+                    <label class="checkbox-inline"><input id="aiExecuteModeParallel" type="radio" name="aiExecuteMode" value="parallel" checked>并行</label>
+                </div>
+                <div class="execute-progress">
+                    <span id="aiExecuteTotal">总数：0</span>
+                    <span id="aiExecuteSuccess">成功：0</span>
+                    <span id="aiExecuteFailed">失败：0</span>
+                    <div class="progress-bar"><div id="aiExecuteProgressValue"></div></div>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="aiSelectAllCasesBtn" type="button">全选/取消全选</button>
+                <button id="aiExecuteCasesBtn" type="button">执行选中用例</button>
+            </div>
+            <table class="table" id="aiCaseTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>caseId</th>
+                    <th>caseName</th>
+                    <th>caseType</th>
+                    <th>status</th>
+                    <th>source</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiExecuteMessage" class="message"></div>
+            <div id="aiExecuteOutput" class="message"></div>
+            <div class="block">
+                <h3>执行结果列表</h3>
+                <div id="aiExecuteRunSummary" class="stats-line">暂无执行结果</div>
+                <table class="table" id="aiExecuteResultTable">
+                    <thead>
+                    <tr>
+                        <th>案例</th>
+                        <th>状态</th>
+                        <th>耗时</th>
+                        <th>时间</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="aiResults" class="panel" data-flow-stage="result">
+            <h2>AI测试 · ⑤ 执行结果</h2>
+            <div class="flow-hint">
+                <span class="flow-label">接口测试流程</span>
+                <div class="flow-steps">
+                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="manage">案例管理</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="execute">执行</span>
+                    <span class="flow-arrow">→</span>
+                    <span class="flow-step" data-flow-stage="result">结果</span>
+                </div>
+            </div>
+            <form id="aiResultQueryForm" class="inline-form">
+                <input name="runId" placeholder="runId（可选）"/>
+                <select id="aiResultStatusFilter">
+                    <option value="all">全部状态</option>
+                    <option value="success">仅成功</option>
+                    <option value="failed">仅失败</option>
+                </select>
+                <button type="submit">按 runId 查询</button>
+                <button id="aiLoadLatestResultsBtn" type="button">查询最新结果</button>
+            </form>
+            <div id="aiResultSummary" class="stats-line"></div>
+            <div class="query-grid">
+                <div>
+                    <h3>运行批次</h3>
+                    <table class="table" id="aiRunTable">
+                        <thead>
+                        <tr>
+                            <th>runId</th>
+                            <th>status</th>
+                            <th>total</th>
+                            <th>passed</th>
+                            <th>failed</th>
+                            <th>executedAt</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>用例结果</h3>
+                    <table class="table" id="aiResultTable">
+                        <thead>
+                        <tr>
+                            <th>caseId</th>
+                            <th>caseName</th>
+                            <th>status</th>
+                            <th>错误/结果信息</th>
+                            <th>耗时</th>
+                            <th>executedAt</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="aiResultOutput" class="message"></div>
+        </section>
+
+        <section id="otherAiAdmin" class="panel">
+            <h2>平台支撑 · AI测试后台管理</h2>
+            <p>这里聚焦平台支撑，不承载业务执行，目标是稳定支撑 AI测试五大能力（文档、案例、管理、执行、结果）。</p>
+            <div class="cards">
+                <div class="card"><div class="label">管理子模块</div><div class="value">6</div></div>
+                <div class="card"><div class="label">当前启用配置</div><div class="value">42</div></div>
+                <div class="card"><div class="label">高风险配置</div><div class="value">3</div></div>
+                <div class="card"><div class="label">待审批变更</div><div class="value">5</div></div>
+            </div>
+
+            <div class="block">
+                <h3>1. 文档模板管理（支撑 AI测试 · 文档）</h3>
+                <div class="actions">
+                    <button type="button">新增模板</button>
+                    <button type="button">编辑模板</button>
+                    <button type="button">删除模板</button>
+                    <button type="button">启停模板</button>
+                    <button type="button">预览模板</button>
+                    <button type="button">导出模板</button>
+                </div>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>模板名称</th>
+                        <th>模板编码</th>
+                        <th>模板类型</th>
+                        <th>适用接口分类</th>
+                        <th>模板内容</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>标准接口文档模板</td>
+                        <td>DOC_STD_V1</td>
+                        <td>接口文档模板</td>
+                        <td>交易类接口</td>
+                        <td>Markdown + OpenAPI 字段映射</td>
+                        <td>启用</td>
+                        <td>2026-03-11 11:20</td>
+                    </tr>
+                    <tr>
+                        <td>Excel导出模板A</td>
+                        <td>DOC_XLSX_A</td>
+                        <td>Excel导出模板</td>
+                        <td>通用接口</td>
+                        <td>sheet:api_list / sheet:params</td>
+                        <td>启用</td>
+                        <td>2026-03-10 18:05</td>
+                    </tr>
+                    <tr>
+                        <td>文本解析模板-券商</td>
+                        <td>DOC_TEXT_BROKER</td>
+                        <td>文本解析模板</td>
+                        <td>券商业务接口</td>
+                        <td>正则 + 关键字抽取规则</td>
+                        <td>停用</td>
+                        <td>2026-03-09 14:33</td>
+                    </tr>
+                    <tr>
+                        <td>字段映射模板-默认</td>
+                        <td>DOC_FIELD_DEFAULT</td>
+                        <td>字段映射模板</td>
+                        <td>全部</td>
+                        <td>request/response 统一映射</td>
+                        <td>启用</td>
+                        <td>2026-03-11 09:42</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>2. 案例生成配置（支撑 AI测试 · 案例）</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>配置名称</th>
+                        <th>配置类型</th>
+                        <th>适用接口</th>
+                        <th>输入规则</th>
+                        <th>输出规则</th>
+                        <th>AI模型</th>
+                        <th>最大生成条数</th>
+                        <th>状态</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>交易接口生成规则</td>
+                        <td>生成规则配置</td>
+                        <td>/api/order/*</td>
+                        <td>必填参数齐全 + 账户有效</td>
+                        <td>正例/反例/边界场景三类输出</td>
+                        <td>qwen-plus</td>
+                        <td>60</td>
+                        <td>启用</td>
+                    </tr>
+                    <tr>
+                        <td>Prompt模板-标准版</td>
+                        <td>Prompt模板配置</td>
+                        <td>全部</td>
+                        <td>文档摘要 + 参数约束 + 示例</td>
+                        <td>结构化 JSON 案例列表</td>
+                        <td>deepseek-chat</td>
+                        <td>80</td>
+                        <td>启用</td>
+                    </tr>
+                    <tr>
+                        <td>Excel字段映射规则</td>
+                        <td>Excel字段映射配置</td>
+                        <td>批量导入</td>
+                        <td>列名标准化 / 类型校验</td>
+                        <td>转换为统一 case DTO</td>
+                        <td>rule-engine</td>
+                        <td>200</td>
+                        <td>启用</td>
+                    </tr>
+                    <tr>
+                        <td>文本提取规则-长文本</td>
+                        <td>文本提取规则配置</td>
+                        <td>文档粘贴导入</td>
+                        <td>段落切分 + 关键词命中</td>
+                        <td>接口定义候选池</td>
+                        <td>qwen-max</td>
+                        <td>100</td>
+                        <td>启用</td>
+                    </tr>
+                    <tr>
+                        <td>示例案例策略</td>
+                        <td>示例案例配置</td>
+                        <td>高频交易接口</td>
+                        <td>历史通过案例作为 few-shot</td>
+                        <td>提高采纳率与入库率</td>
+                        <td>deepseek-chat</td>
+                        <td>50</td>
+                        <td>启用</td>
+                    </tr>
+                    <tr>
+                        <td>生成结果校验</td>
+                        <td>生成结果校验规则</td>
+                        <td>全部</td>
+                        <td>字段完整性 + 可执行性检查</td>
+                        <td>不合格案例自动拦截</td>
+                        <td>rule-engine</td>
+                        <td>不限</td>
+                        <td>启用</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>3. 参数规则管理（支撑 AI测试 · 案例/执行）</h3>
+                <p>把“案例生成出来但执行不起来”的问题前置解决。</p>
+                <div class="actions">
+                    <button type="button">动态参数规则管理</button>
+                    <button type="button">特殊字段获取规则管理</button>
+                    <button type="button">默认值策略管理</button>
+                    <button type="button">参数校验规则配置</button>
+                    <button type="button">关联功能号配置</button>
+                </div>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>支持字段类型</th>
+                        <th>取值策略</th>
+                        <th>校验规则</th>
+                        <th>关联功能号</th>
+                        <th>状态</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>account</td><td>登录态缓存提取</td><td>非空 + 账号格式</td><td>517268</td><td>启用</td></tr>
+                    <tr><td>stockCode</td><td>行情服务实时拉取</td><td>交易所代码合法性</td><td>500.6</td><td>启用</td></tr>
+                    <tr><td>price</td><td>按最新价浮动 ±5%</td><td>价格区间校验</td><td>500.6</td><td>启用</td></tr>
+                    <tr><td>qty</td><td>按最小交易单位生成</td><td>数量整型校验</td><td>500.6</td><td>启用</td></tr>
+                    <tr><td>branchNo</td><td>用户档案映射</td><td>分支机构白名单</td><td>517504</td><td>启用</td></tr>
+                    <tr><td>fundAccount</td><td>资金账户绑定关系</td><td>账户权限校验</td><td>517504</td><td>启用</td></tr>
+                    <tr><td>token/session</td><td>统一认证中心获取</td><td>有效期校验</td><td>517508</td><td>启用</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>4. 执行策略管理（支撑 AI测试 · 执行）</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>策略项</th>
+                        <th>配置值</th>
+                        <th>说明</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>执行方式配置</td><td>手动触发 / 定时触发</td><td>统一执行入口</td></tr>
+                    <tr><td>串行/并行策略</td><td>默认并行 8</td><td>按接口分组并行执行</td></tr>
+                    <tr><td>超时策略</td><td>30s</td><td>超时自动终止并记录</td></tr>
+                    <tr><td>重试策略</td><td>失败重试 2 次</td><td>仅对可重试错误生效</td></tr>
+                    <tr><td>Mock模式开关</td><td>关闭</td><td>联调期可开启</td></tr>
+                    <tr><td>现有执行平台对接配置</td><td>已配置</td><td>执行结果统一回传</td></tr>
+                    <tr><td>执行能力配置页</td><td>已上线</td><td>策略集中管理</td></tr>
+                    <tr><td>模拟执行开关</td><td>可配置</td><td>压测或演练场景使用</td></tr>
+                    <tr><td>结果回传映射配置</td><td>已配置</td><td>兼容现有执行/结果平台</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>5. 结果清理策略（支撑 AI测试 · 结果）</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>策略名称</th>
+                        <th>配置值</th>
+                        <th>说明</th>
+                        <th>状态</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>执行结果保留天数配置</td><td>90 天</td><td>超期自动归档</td><td>启用</td></tr>
+                    <tr><td>历史结果归档</td><td>T+1 凌晨任务</td><td>归档到冷存储</td><td>启用</td></tr>
+                    <tr><td>失败结果高亮策略</td><td>连续失败 >= 3</td><td>进入重点关注列表</td><td>启用</td></tr>
+                    <tr><td>异常聚合规则</td><td>按接口 + 错误码聚合</td><td>降低排障噪音</td><td>启用</td></tr>
+                    <tr><td>结果导出配置</td><td>CSV / Excel</td><td>支持按批次导出</td><td>启用</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>6. 模型配置管理（支撑 AI测试 · 文档/案例）</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>模型名称</th>
+                        <th>调用地址</th>
+                        <th>key配置</th>
+                        <th>温度参数</th>
+                        <th>token限制</th>
+                        <th>超时设置</th>
+                        <th>是否启用</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>qwen-plus</td>
+                        <td>https://api.xxx.com/qwen-plus</td>
+                        <td>已配置（脱敏）</td>
+                        <td>0.2</td>
+                        <td>16k</td>
+                        <td>30s</td>
+                        <td>是</td>
+                    </tr>
+                    <tr>
+                        <td>deepseek-chat</td>
+                        <td>https://api.xxx.com/deepseek-chat</td>
+                        <td>已配置（脱敏）</td>
+                        <td>0.3</td>
+                        <td>32k</td>
+                        <td>45s</td>
+                        <td>是</td>
+                    </tr>
+                    <tr>
+                        <td>本地规则引擎</td>
+                        <td>internal://rule-engine</td>
+                        <td>N/A</td>
+                        <td>0.0</td>
+                        <td>不限</td>
+                        <td>5s</td>
+                        <td>是</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p>该页用于后续模型切换与环境切换，无需改动业务代码。</p>
+            </div>
+        </section>
+
+        <section id="otherReports" class="panel">
+            <h2>平台支撑 · 报表中心</h2>
+            <p>围绕 AI测试全链路构建文档、案例、入库、执行、结果五类报表，服务平台化治理。</p>
+            <div class="cards">
+                <div class="card"><div class="label">文档生成次数（近7日）</div><div class="value">1,268</div></div>
+                <div class="card"><div class="label">AI生成案例数（近7日）</div><div class="value">8,942</div></div>
+                <div class="card"><div class="label">采纳率</div><div class="value">73.6%</div></div>
+                <div class="card"><div class="label">入库率</div><div class="value">68.2%</div></div>
+                <div class="card"><div class="label">执行失败率</div><div class="value">7.9%</div></div>
+            </div>
+
+            <div class="block">
+                <h3>1. 文档生成报表</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>统计项</th>
+                        <th>当前值</th>
+                        <th>趋势</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>文档生成次数</td><td>1,268</td><td>+11.2%</td></tr>
+                    <tr><td>生成人数</td><td>34</td><td>+6.3%</td></tr>
+                    <tr><td>生成成功率</td><td>98.4%</td><td>+0.7%</td></tr>
+                    <tr><td>Excel导出次数</td><td>529</td><td>+9.8%</td></tr>
+                    <tr><td>文档失败原因排行</td><td>1. 文本格式异常 2. 字段缺失 3. 模型超时</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>2. 案例生成报表</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>统计项</th>
+                        <th>当前值</th>
+                        <th>趋势</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>AI生成案例数</td><td>8,942</td><td>+14.5%</td></tr>
+                    <tr><td>文本生成数量</td><td>3,420</td><td>+7.4%</td></tr>
+                    <tr><td>Excel导入生成数量</td><td>5,522</td><td>+18.8%</td></tr>
+                    <tr><td>平均每次生成案例条数</td><td>24.3</td><td>+1.9%</td></tr>
+                    <tr><td>采纳率</td><td>73.6%</td><td>+2.4%</td></tr>
+                    <tr><td>入库率</td><td>68.2%</td><td>+1.3%</td></tr>
+                    <tr><td>删除率</td><td>9.7%</td><td>-0.8%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>3. 案例入库报表</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>统计项</th>
+                        <th>当前值</th>
+                        <th>趋势</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>待采纳案例数</td><td>1,126</td><td>-4.2%</td></tr>
+                    <tr><td>已入库案例数</td><td>5,487</td><td>+6.8%</td></tr>
+                    <tr><td>取消入库次数</td><td>212</td><td>+1.6%</td></tr>
+                    <tr><td>修改次数</td><td>1,034</td><td>+5.2%</td></tr>
+                    <tr><td>删除次数</td><td>683</td><td>-2.1%</td></tr>
+                    <tr><td>接口维度案例分布</td><td>/api/order 42% /api/fund 28% /api/stock 30%</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>4. 执行统计报表</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>统计项</th>
+                        <th>当前值</th>
+                        <th>趋势</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>总执行次数</td><td>2,914</td><td>+10.9%</td></tr>
+                    <tr><td>成功数</td><td>2,684</td><td>+11.7%</td></tr>
+                    <tr><td>失败数</td><td>230</td><td>+2.3%</td></tr>
+                    <tr><td>失败率</td><td>7.9%</td><td>-0.5%</td></tr>
+                    <tr><td>平均执行耗时</td><td>1.82s</td><td>-4.1%</td></tr>
+                    <tr><td>按接口统计执行情况</td><td>/api/order 通过率 93.2%</td><td>-</td></tr>
+                    <tr><td>按案例统计执行情况</td><td>重点案例通过率 95.6%</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="block">
+                <h3>5. 结果趋势报表</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>统计项</th>
+                        <th>当前值</th>
+                        <th>趋势</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>日维度执行趋势</td><td>近7日均值 416 次/日</td><td>上升</td></tr>
+                    <tr><td>周维度通过率趋势</td><td>92.1%</td><td>上升</td></tr>
+                    <tr><td>月维度失败趋势</td><td>7.9%</td><td>下降</td></tr>
+                    <tr><td>异常接口TOP10</td><td>/api/order/cancel 等</td><td>-</td></tr>
+                    <tr><td>高频失败场景TOP10</td><td>参数缺失 / 超时 / 账户权限</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="otherLogs" class="panel">
+            <h2>平台支撑 · 日志中心</h2>
+            <p>日志中心按职责拆分为操作、接口调用、AI生成、执行、异常五类，便于快速排障与审计追踪。</p>
+            <div class="block">
+                <h3>日志分类与字段</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>日志类型</th>
+                        <th>关键字段</th>
+                        <th>用途</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>操作日志</td>
+                        <td>操作人、操作模块、操作类型、请求参数、操作结果、操作时间、IP</td>
+                        <td>审计“谁在何时做了什么”</td>
+                    </tr>
+                    <tr>
+                        <td>接口调用日志</td>
+                        <td>请求地址、请求方法、请求入参、响应结果、响应耗时、状态码、异常堆栈</td>
+                        <td>接口链路追踪与性能分析</td>
+                    </tr>
+                    <tr>
+                        <td>AI生成日志</td>
+                        <td>输入内容摘要、使用模板、模型名称、返回内容摘要、生成条数、成功/失败、token消耗、耗时</td>
+                        <td>AI质量与成本治理</td>
+                    </tr>
+                    <tr>
+                        <td>执行日志</td>
+                        <td>执行批次号、案例ID、请求参数、执行状态、断言结果、耗时、错误信息</td>
+                        <td>执行过程复盘</td>
+                    </tr>
+                    <tr>
+                        <td>异常日志</td>
+                        <td>异常类型、影响范围、堆栈摘要、恢复状态、发生时间</td>
+                        <td>故障定位与恢复闭环</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="query-grid">
+                <div class="block">
+                    <h3>1. 操作日志</h3>
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>操作人</th>
+                            <th>操作模块</th>
+                            <th>操作类型</th>
+                            <th>操作结果</th>
+                            <th>操作时间</th>
+                            <th>IP</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>admin</td><td>案例管理</td><td>取消入库</td><td>成功</td><td>2026-03-11 10:22:13</td><td>10.12.3.18</td></tr>
+                        <tr><td>tester01</td><td>文档管理</td><td>导出结果</td><td>成功</td><td>2026-03-11 10:18:44</td><td>10.12.3.25</td></tr>
+                        <tr><td>qa02</td><td>案例管理</td><td>删除案例</td><td>成功</td><td>2026-03-11 09:57:02</td><td>10.12.3.36</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="block">
+                    <h3>2. 接口调用日志</h3>
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>请求地址</th>
+                            <th>请求方法</th>
+                            <th>状态码</th>
+                            <th>响应耗时</th>
+                            <th>结果</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>/api/generate-cases/import</td><td>POST</td><td>200</td><td>842ms</td><td>成功</td></tr>
+                        <tr><td>/api/execute-cases</td><td>POST</td><td>200</td><td>1260ms</td><td>成功</td></tr>
+                        <tr><td>/api/generate-docs/import</td><td>POST</td><td>500</td><td>30122ms</td><td>失败（模型超时）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="query-grid">
+                <div class="block">
+                    <h3>3. AI生成日志</h3>
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>模型名称</th>
+                            <th>使用模板</th>
+                            <th>生成条数</th>
+                            <th>token消耗</th>
+                            <th>耗时</th>
+                            <th>结果</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>qwen-plus</td><td>Prompt模板-标准版</td><td>26</td><td>10,482</td><td>2.8s</td><td>成功</td></tr>
+                        <tr><td>deepseek-chat</td><td>交易接口生成规则</td><td>18</td><td>7,610</td><td>2.1s</td><td>成功</td></tr>
+                        <tr><td>qwen-max</td><td>文本提取规则-长文本</td><td>0</td><td>3,920</td><td>30.0s</td><td>失败</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="block">
+                    <h3>4. 执行日志</h3>
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>执行批次号</th>
+                            <th>案例ID</th>
+                            <th>执行状态</th>
+                            <th>断言结果</th>
+                            <th>耗时</th>
+                            <th>错误信息</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>RUN-20260311-0012</td><td>146666</td><td>成功</td><td>通过</td><td>1.02s</td><td>-</td></tr>
+                        <tr><td>RUN-20260311-0012</td><td>146701</td><td>失败</td><td>未通过</td><td>1.98s</td><td>返回码不匹配</td></tr>
+                        <tr><td>RUN-20260311-0013</td><td>146745</td><td>失败</td><td>未通过</td><td>3.12s</td><td>超时</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="block">
+                <h3>5. 异常日志</h3>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>异常类型</th>
+                        <th>模块</th>
+                        <th>摘要</th>
+                        <th>状态</th>
+                        <th>时间</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>文档解析失败</td><td>文档生成</td><td>YAML 结构缺失 paths</td><td>已恢复</td><td>2026-03-11 09:20:12</td></tr>
+                    <tr><td>Excel导入失败</td><td>案例生成</td><td>字段映射缺少 caseName</td><td>已恢复</td><td>2026-03-11 09:34:09</td></tr>
+                    <tr><td>AI生成失败</td><td>案例生成</td><td>模型超时（30s）</td><td>已恢复</td><td>2026-03-11 09:58:07</td></tr>
+                    <tr><td>入库失败</td><td>案例管理</td><td>唯一键冲突 caseId</td><td>处理中</td><td>2026-03-11 10:03:45</td></tr>
+                    <tr><td>执行失败</td><td>执行中心</td><td>目标环境 50000 无响应</td><td>处理中</td><td>2026-03-11 09:42:55</td></tr>
+                    <tr><td>结果回传失败</td><td>结果中心</td><td>回传映射字段不匹配</td><td>已恢复</td><td>2026-03-11 10:11:26</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div id="aiDetailModal" class="modal hidden" aria-hidden="true">
+            <div class="modal-mask" data-modal-close="true"></div>
+            <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aiDetailModalTitle">
+                <div class="modal-header">
+                    <h3 id="aiDetailModalTitle">详情</h3>
+                    <button id="aiDetailModalCloseBtn" class="table-btn table-btn-secondary" type="button">关闭</button>
+                </div>
+                <div id="aiDetailModalBody" class="modal-body"></div>
+            </div>
         </div>
-      </div>
-      <details class="menu-group menu-group-other" open>
-        <summary>其他功能</summary>
-        <div class="menu-group-items">
-          <button data-panel="otherAiAdmin">AI测试后台管理</button>
-          <button data-panel="otherReports">报表中心</button>
-          <button data-panel="otherLogs">日志中心</button>
-        </div>
-      </details>
-    </nav>
-  </aside>
-
-  <main class="content">
-    <section id="aiInterfaceCases" class="panel">
-      <h2>Ai测试 · AI生成接口案例</h2>
-      <div class="block">
-        <h3>文件导入与文本输入（放在最前）</h3>
-        <p>支持接口文档、文本描述、Excel导入，AI 生成后进入预生成案例池，人工审核确认后再入库执行。</p>
-        <div class="form-grid">
-          <input id="aiInterfaceFile" type="file" accept=".xlsx,.xls,.csv,.json,.txt">
-          <textarea id="aiInterfaceText" placeholder="支持文本描述 / JSON / CSV / Key:Value；可附带成功案例让AI扩展边界、异常、参数缺失场景"></textarea>
-          <button id="aiInterfaceGenerateBtn" type="button">AI生成并写入预生成案例池</button>
-        </div>
-      </div>
-      <div id="aiInterfaceMessage" class="message"></div>
-      <div class="block">
-        <h3>最近生成记录</h3>
-        <table class="table" id="aiGeneratedTempTable">
-          <thead>
-          <tr>
-            <th>tempId</th>
-            <th>generationId</th>
-            <th>funcNo</th>
-            <th>caseName</th>
-            <th>状态</th>
-            <th>生成时间</th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="aiPreCases" class="panel">
-      <h2>Ai测试 · 待采纳案例</h2>
-      <div class="actions">
-        <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
-        <button id="aiInterfaceSaveRunBtn" type="button">批量入库并执行</button>
-        <button id="aiInterfaceDeleteBtn" type="button">删除</button>
-        <button id="aiInterfaceRegenerateBtn" type="button">重新生成</button>
-        <button id="aiInterfaceReloadBtn" type="button">刷新</button>
-        <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId">
-        <select id="aiInterfaceFilterStatus">
-          <option value="pending">仅未入库</option>
-          <option value="valid">仅可入库</option>
-          <option value="invalid">仅不可入库</option>
-          <option value="selected">仅已采纳</option>
-        </select>
-      </div>
-      <div id="aiInterfaceStats" class="stats-line"></div>
-      <table class="table" id="aiInterfaceTable">
-        <thead>
-        <tr>
-          <th>选择</th>
-          <th>tempId</th>
-          <th>来源</th>
-          <th>sysId</th>
-          <th>sysName</th>
-          <th>funcNo</th>
-          <th>funcName</th>
-          <th>funcType</th>
-          <th>caseId</th>
-          <th>caseName</th>
-          <th>moduleName</th>
-          <th>状态</th>
-          <th>操作</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="aiPreCaseMessage" class="message"></div>
-      <div class="block">
-        <h3>入库结果</h3>
-        <table class="table" id="aiInterfaceSaveTable">
-          <thead>
-          <tr>
-            <th>tempId</th>
-            <th>funcNo</th>
-            <th>caseId</th>
-            <th>caseName</th>
-            <th>接口新增</th>
-            <th>结果</th>
-            <th>说明</th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="block">
-        <h3>自动执行结果</h3>
-        <table class="table" id="aiInterfaceExecutionTable">
-          <thead>
-          <tr>
-            <th>hisId</th>
-            <th>状态</th>
-            <th>模式</th>
-            <th>版本</th>
-            <th>总数</th>
-            <th>成功</th>
-            <th>失败</th>
-            <th>通过率</th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="aiPublishedCases" class="panel">
-      <h2>Ai测试 · 已入库案例</h2>
-      <div class="actions">
-        <button id="aiPublishedSelectAllBtn" type="button">全选/取消全选</button>
-        <button id="aiPublishedDeleteBtn" type="button">批量删除</button>
-        <button id="aiPublishedCancelBtn" type="button">批量取消入库</button>
-        <button id="aiPublishedReloadBtn" type="button">刷新</button>
-        <input id="aiPublishedFilterKeyword" type="text" placeholder="搜索 caseName / funcNo / sysId">
-      </div>
-      <div id="aiPublishedStats" class="stats-line"></div>
-      <table class="table" id="aiPublishedTable">
-        <thead>
-        <tr>
-          <th>选择</th>
-          <th>tempId</th>
-          <th>caseName</th>
-          <th>funcNo</th>
-          <th>请求方式</th>
-          <th>接口地址</th>
-          <th>状态</th>
-          <th>更新时间</th>
-          <th>操作</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="aiPublishedMessage" class="message"></div>
-    </section>
-
-    <section id="aiDocs" class="panel active">
-      <h2>Ai测试 · 接口文档生成</h2>
-      <div class="block">
-        <h3>接口文档导入生成（AI参与）</h3>
-        <p>支持直接导入 OpenAPI JSON/YAML 文档，AI 自动生成文档结构与说明。</p>
-        <div class="form-grid">
-          <input id="aiDocImportFile" type="file" accept=".json,.yaml,.yml,.txt">
-          <textarea id="aiDocImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
-          <button id="aiDocImportGenerateBtn" type="button">导入文档并生成接口文档</button>
-        </div>
-      </div>
-      <form id="aiDocForm" class="form-grid">
-        <input name="apiName" value="下单接口" placeholder="apiName" required>
-        <input name="apiPath" value="/api/order/create" placeholder="apiPath" required>
-        <select name="method">
-          <option>POST</option>
-          <option>GET</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-        </select>
-        <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
-        <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
-        <button type="submit">生成接口文档</button>
-      </form>
-      <div class="actions">
-        <button id="aiDocExportExcelBtn" type="button">导出当前接口文档Excel</button>
-        <button id="aiDocImportExportExcelBtn" type="button">导出导入结果Excel</button>
-      </div>
-      <div id="aiDocMessage" class="message"></div>
-      <div class="query-grid">
-        <div>
-          <h3>Markdown 文档</h3>
-          <pre id="aiDocMarkdownOutput"></pre>
-        </div>
-        <div>
-          <h3>OpenAPI JSON</h3>
-          <pre id="aiDocOpenApiOutput"></pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="aiCases" class="panel">
-      <h2>Ai测试 · 测试用例生成</h2>
-      <div class="block">
-        <h3>接口文档导入生成</h3>
-        <p>支持直接导入 OpenAPI JSON/YAML 文档，自动解析并生成测试用例。</p>
-        <div class="form-grid">
-          <input id="aiCaseImportFile" type="file" accept=".json,.yaml,.yml,.txt">
-          <textarea id="aiCaseImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
-          <button id="aiCaseImportGenerateBtn" type="button">导入文档并生成用例</button>
-        </div>
-      </div>
-      <form id="aiCaseForm" class="form-grid">
-        <input name="apiName" value="下单接口" placeholder="apiName" required>
-        <input name="apiPath" value="/api/order/create" placeholder="apiPath" required>
-        <select name="method">
-          <option>POST</option>
-          <option>GET</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-        </select>
-        <textarea name="requestParams" placeholder="requestParams(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
-        <textarea name="responseParams" placeholder="responseParams(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
-        <button type="submit">生成测试用例</button>
-      </form>
-      <div id="aiCaseMessage" class="message"></div>
-      <pre id="aiCaseOutput"></pre>
-    </section>
-
-    <section id="aiExecute" class="panel">
-      <h2>Ai测试 · 用例执行</h2>
-      <div class="actions">
-        <button id="aiSelectAllCasesBtn" type="button">全选/取消全选</button>
-        <button id="aiExecuteCasesBtn" type="button">执行选中用例</button>
-      </div>
-      <table class="table" id="aiCaseTable">
-        <thead>
-        <tr>
-          <th>选择</th>
-          <th>caseId</th>
-          <th>caseName</th>
-          <th>caseType</th>
-          <th>status</th>
-          <th>source</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="aiExecuteMessage" class="message"></div>
-      <pre id="aiExecuteOutput"></pre>
-    </section>
-
-    <section id="aiResults" class="panel">
-      <h2>Ai测试 · 执行结果展示</h2>
-      <form id="aiResultQueryForm" class="inline-form">
-        <input name="runId" placeholder="runId（可选）">
-        <button type="submit">按 runId 查询</button>
-        <button id="aiLoadLatestResultsBtn" type="button">查询最新结果</button>
-      </form>
-      <div class="query-grid">
-        <div>
-          <h3>运行批次</h3>
-          <table class="table" id="aiRunTable">
-            <thead>
-            <tr>
-              <th>runId</th>
-              <th>status</th>
-              <th>total</th>
-              <th>passed</th>
-              <th>failed</th>
-              <th>executedAt</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div>
-          <h3>用例结果</h3>
-          <table class="table" id="aiResultTable">
-            <thead>
-            <tr>
-              <th>caseId</th>
-              <th>caseName</th>
-              <th>status</th>
-              <th>message</th>
-              <th>executedAt</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-      <pre id="aiResultOutput"></pre>
-    </section>
-
-    <section id="otherAiAdmin" class="panel">
-      <h2>其他功能 · AI测试后台管理</h2>
-      <p>该模块用于支撑 AI测试五大业务功能（文档、案例、管理、执行、结果）的配置、治理与运维。</p>
-      <div class="block">
-        <h3>五大功能支撑清单</h3>
-        <table class="table">
-          <thead>
-          <tr>
-            <th>AI测试功能</th>
-            <th>后台管理能力</th>
-            <th>目标</th>
-            <th>状态</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr>
-            <td>1. 文档</td>
-            <td>文档模板管理 / 字段映射管理</td>
-            <td>统一文档生成口径，减少手工维护</td>
-            <td>已启用</td>
-          </tr>
-          <tr>
-            <td>2. 案例</td>
-            <td>案例生成配置 / 参数规则管理</td>
-            <td>提高生成质量，减少不可执行案例</td>
-            <td>已启用</td>
-          </tr>
-          <tr>
-            <td>3. 管理</td>
-            <td>案例状态流转策略（待采纳/已入库）</td>
-            <td>支撑审核式入库与回退流程</td>
-            <td>已启用</td>
-          </tr>
-          <tr>
-            <td>4. 执行</td>
-            <td>执行策略管理（串并行/超时/重试）</td>
-            <td>提升执行稳定性与可观测性</td>
-            <td>已启用</td>
-          </tr>
-          <tr>
-            <td>5. 结果</td>
-            <td>结果清理策略 / 归档策略</td>
-            <td>控制存储成本并保留关键审计记录</td>
-            <td>已启用</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="block">
-        <h3>配置中心能力列表</h3>
-        <table class="table">
-          <thead>
-          <tr>
-            <th>配置模块</th>
-            <th>核心配置项</th>
-            <th>说明</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr>
-            <td>文档模板管理</td>
-            <td>模板编码、模板类型、字段映射、启停状态</td>
-            <td>支撑接口文档导入、生成、导出统一化</td>
-          </tr>
-          <tr>
-            <td>案例生成配置</td>
-            <td>Prompt模板、输入规则、输出规则、最大生成条数</td>
-            <td>支撑 AI 生成案例质量控制</td>
-          </tr>
-          <tr>
-            <td>参数规则管理</td>
-            <td>动态参数规则、默认值策略、字段校验规则</td>
-            <td>解决“可生成不可执行”的前置问题</td>
-          </tr>
-          <tr>
-            <td>执行策略管理</td>
-            <td>执行模式、并发度、超时、重试、Mock 开关</td>
-            <td>统一执行行为并支持平台兼容</td>
-          </tr>
-          <tr>
-            <td>结果清理策略</td>
-            <td>保留天数、归档规则、失败高亮、导出策略</td>
-            <td>保障结果可追溯且可控</td>
-          </tr>
-          <tr>
-            <td>模型配置管理</td>
-            <td>模型地址、密钥、温度、Token 限制、超时</td>
-            <td>支持多模型切换与环境隔离</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="otherReports" class="panel">
-      <h2>其他功能 · 报表中心</h2>
-      <p>围绕 AI测试流程提供文档、案例、入库、执行、结果五类统计报表。</p>
-      <div class="cards">
-        <div class="card">
-          <div class="label">文档生成成功率</div>
-          <div class="value">98.6%</div>
-        </div>
-        <div class="card">
-          <div class="label">案例采纳率</div>
-          <div class="value">72.4%</div>
-        </div>
-        <div class="card">
-          <div class="label">入库通过率</div>
-          <div class="value">95.1%</div>
-        </div>
-        <div class="card">
-          <div class="label">执行通过率</div>
-          <div class="value">91.8%</div>
-        </div>
-        <div class="card">
-          <div class="label">近7日失败趋势</div>
-          <div class="value">-12.3%</div>
-        </div>
-      </div>
-      <div class="block">
-        <h3>报表目录</h3>
-        <table class="table">
-          <thead>
-          <tr>
-            <th>报表名称</th>
-            <th>统计口径</th>
-            <th>关键指标</th>
-            <th>更新频率</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr>
-            <td>文档生成报表</td>
-            <td>按接口/按用户/按模板</td>
-            <td>生成次数、成功率、失败原因 TOP</td>
-            <td>T+0 小时级</td>
-          </tr>
-          <tr>
-            <td>案例生成报表</td>
-            <td>按生成来源（文本/Excel/OpenAPI）</td>
-            <td>生成量、平均条数、采纳率、删除率</td>
-            <td>T+0 小时级</td>
-          </tr>
-          <tr>
-            <td>案例入库报表</td>
-            <td>按接口/模块/负责人</td>
-            <td>待采纳数、已入库数、取消入库次数</td>
-            <td>T+0 小时级</td>
-          </tr>
-          <tr>
-            <td>执行统计报表</td>
-            <td>按接口/按案例/按批次</td>
-            <td>执行次数、失败率、平均耗时</td>
-            <td>T+0 小时级</td>
-          </tr>
-          <tr>
-            <td>结果趋势报表</td>
-            <td>按日/周/月趋势</td>
-            <td>通过率趋势、异常接口 TOP10</td>
-            <td>T+1 天级</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="otherLogs" class="panel">
-      <h2>其他功能 · 日志中心</h2>
-      <p>日志中心统一承载操作审计、接口调用、AI生成、执行过程、异常归集五类日志。</p>
-      <div class="block">
-        <h3>日志分类</h3>
-        <table class="table">
-          <thead>
-          <tr>
-            <th>日志类型</th>
-            <th>记录内容</th>
-            <th>典型用途</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr>
-            <td>操作日志</td>
-            <td>操作人、模块、动作、结果、时间、IP</td>
-            <td>审计追踪、变更回溯</td>
-          </tr>
-          <tr>
-            <td>接口调用日志</td>
-            <td>请求地址、请求参数、响应、耗时、状态码</td>
-            <td>排查接口错误与超时</td>
-          </tr>
-          <tr>
-            <td>AI生成日志</td>
-            <td>模板、模型、输入摘要、输出摘要、token消耗</td>
-            <td>定位 AI 质量与成本问题</td>
-          </tr>
-          <tr>
-            <td>执行日志</td>
-            <td>批次号、案例ID、断言结果、耗时、错误信息</td>
-            <td>定位执行失败场景</td>
-          </tr>
-          <tr>
-            <td>异常日志</td>
-            <td>异常类型、堆栈摘要、影响范围、恢复状态</td>
-            <td>故障恢复与稳定性治理</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="query-grid">
-        <div class="block">
-          <h3>最近操作日志</h3>
-          <table class="table">
-            <thead>
-            <tr>
-              <th>操作人</th>
-              <th>模块</th>
-              <th>动作</th>
-              <th>结果</th>
-              <th>时间</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-              <td>admin</td>
-              <td>案例管理</td>
-              <td>取消入库</td>
-              <td>成功</td>
-              <td>2026-03-11 10:22:13</td>
-            </tr>
-            <tr>
-              <td>tester01</td>
-              <td>执行中心</td>
-              <td>执行批次</td>
-              <td>成功</td>
-              <td>2026-03-11 10:19:48</td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="block">
-          <h3>最近异常日志</h3>
-          <table class="table">
-            <thead>
-            <tr>
-              <th>异常类型</th>
-              <th>模块</th>
-              <th>摘要</th>
-              <th>状态</th>
-              <th>时间</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-              <td>AI生成失败</td>
-              <td>案例生成</td>
-              <td>模型超时（30s）</td>
-              <td>已恢复</td>
-              <td>2026-03-11 09:58:07</td>
-            </tr>
-            <tr>
-              <td>执行失败</td>
-              <td>执行中心</td>
-              <td>目标环境 50000 无响应</td>
-              <td>处理中</td>
-              <td>2026-03-11 09:42:55</td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section id="overview" class="panel">
-      <h2>项目概述</h2>
-      <p>当前页面是 GitHub Pages 演示环境，独立展示 5.py 的经典接口自动化测试平台。</p>
-      <div class="cards" id="summaryCards"></div>
-      <div class="block">
-        <h3>一、总体架构</h3>
-<pre class="architecture">+-------------------+        +-----------------+        +--------------------+       +-------------------------------+
-| Frontend (UI)     | <----> | API Controller  | <----> | Test Case Service  | <----> | Database (MySQL/PostgreSQL)  |
-+-------------------+        +-----------------+        +--------------------+       +-------------------------------+
-                                                          ↑                   ↑
-                                                          |                   |
-                                              +------------------+     +-----------------+
-                                              | LLM Model Client |     | Task Execution  |
-                                              +------------------+     +-----------------+</pre>
-      </div>
-      <div class="block">
-        <h3>线上地址</h3>
-        <p><a href="https://xuzhidong-netizen.github.io/5.py/" target="_blank">https://xuzhidong-netizen.github.io/5.py/</a></p>
-        <p>该页为静态演示版，Java 运行版请在仓库 `java-platform` 模块启动。</p>
-      </div>
-    </section>
-
-    <section id="environment" class="panel">
-      <h2>环境配置</h2>
-      <div class="block">
-        <h3>2.1 开发环境</h3>
-        <ul>
-          <li>操作系统：Linux / macOS / Windows</li>
-          <li>JDK：17+</li>
-          <li>Maven：3.9+</li>
-          <li>IDE：IntelliJ IDEA</li>
-        </ul>
-      </div>
-      <div class="block">
-        <h3>2.2 测试与生产建议</h3>
-        <ul>
-          <li>服务器：4C8G 起步</li>
-          <li>负载均衡：Nginx / HAProxy</li>
-          <li>备份：日志与数据库定时备份</li>
-        </ul>
-      </div>
-    </section>
-
-    <section id="deploy" class="panel">
-      <h2>部署流程</h2>
-      <div class="block">
-<pre>cd java-platform
-mvn clean package
-java -jar target/java-api-test-platform-1.0.0.jar</pre>
-      </div>
-      <div class="block">
-        <ol>
-          <li>停止旧服务</li>
-          <li>上传新包</li>
-          <li>替换文件</li>
-          <li>启动服务</li>
-          <li>检查状态</li>
-        </ol>
-      </div>
-    </section>
-
-    <section id="cases" class="panel">
-      <h2>新增案例（T_AI_CASE）</h2>
-      <form id="caseForm" class="form-grid">
-        <input name="sysId" value="cjeh2" placeholder="sysId" required>
-        <input name="sysName" value="长江e号2" placeholder="sysName" required>
-        <input name="caseId" type="number" placeholder="caseId" required>
-        <input name="caseName" placeholder="caseName" required>
-        <input name="funcNo" placeholder="funcNo" required>
-        <input name="moduleName" placeholder="moduleName" required>
-        <textarea name="caseKvBase" placeholder="caseKvBase(JSON)" required></textarea>
-        <textarea name="caseKvDynamic" placeholder="caseKvDynamic(JSON)"></textarea>
-        <button type="submit">新增案例</button>
-      </form>
-      <div id="caseMessage" class="message"></div>
-      <table class="table" id="caseTable">
-        <thead>
-        <tr>
-          <th>ID</th>
-          <th>sysId</th>
-          <th>caseId</th>
-          <th>caseName</th>
-          <th>funcNo</th>
-          <th>module</th>
-          <th>创建时间</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section id="functions" class="panel">
-      <h2>新增接口（T_AI_FUNCTION）</h2>
-      <form id="functionForm" class="form-grid">
-        <input name="sysId" value="cjeh2" placeholder="sysId" required>
-        <input name="sysName" value="长江e号2" placeholder="sysName" required>
-        <input name="funcNo" placeholder="funcNo" required>
-        <input name="funcName" placeholder="funcName" required>
-        <input name="funcType" value="yn" placeholder="funcType" required>
-        <input name="subFuncType" value="trade" placeholder="subFuncType">
-        <input name="funcRequestMethod" value="POST" placeholder="funcRequestMethod">
-        <input name="funcHttpUrl" placeholder="funcHttpUrl">
-        <textarea name="funcParamMatch" placeholder="funcParamMatch"></textarea>
-        <textarea name="funcRemark" placeholder="funcRemark"></textarea>
-        <button type="submit">新增接口</button>
-      </form>
-      <div id="functionMessage" class="message"></div>
-      <table class="table" id="functionTable">
-        <thead>
-        <tr>
-          <th>ID</th>
-          <th>sysId</th>
-          <th>funcNo</th>
-          <th>funcName</th>
-          <th>funcType</th>
-          <th>subFuncType</th>
-          <th>创建时间</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-
-    <section id="versionQuery" class="panel">
-      <h2>查询执行版本 / 功能号名称和ID</h2>
-      <div class="actions">
-        <button id="loadVersionsBtn">查询质控支持的版本号 (517508)</button>
-        <button id="loadFunctionLookupBtn">查询功能号名称和ID (517504)</button>
-      </div>
-      <div class="query-grid">
-        <div>
-          <h3>版本列表</h3>
-          <pre id="versionResult"></pre>
-        </div>
-        <div>
-          <h3>功能号列表</h3>
-          <pre id="functionLookupResult"></pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="execution" class="panel">
-      <h2>执行流程中心</h2>
-      <div class="query-grid">
-        <div>
-          <h3>方式1：智能体执行版本测试</h3>
-          <form id="agentRunForm" class="inline-form">
-            <input name="iVersionName" value="长江e号" placeholder="i_version_name">
-            <input name="iVersionNumber" placeholder="i_version_number">
-            <button type="submit">执行版本测试</button>
-          </form>
-          <form id="queryStatusForm" class="inline-form">
-            <input name="hisId" placeholder="hisId">
-            <button type="submit">查询任务状态</button>
-          </form>
-          <form id="queryResultForm" class="inline-form">
-            <input name="hisId" placeholder="hisId">
-            <button type="submit">查询执行结果</button>
-          </form>
-        </div>
-        <div>
-          <h3>方式2：DevOps 自动化测试</h3>
-          <button id="authBtn">获取 Authorization</button>
-          <form id="devopsBatchForm" class="inline-form">
-            <input name="iResource" value="0" placeholder="i_resource">
-            <input name="iSysid" value="长江e号" placeholder="i_sysid">
-            <input name="iSysver" placeholder="i_sysver">
-            <button type="submit">批量执行</button>
-          </form>
-          <div class="actions">
-            <button id="latestDevopsStatusBtn">查询最新 hisId 状态</button>
-            <button id="latestDevopsResultBtn">查询最新执行结果</button>
-          </div>
-          <form id="queryDevopsByIdForm" class="inline-form">
-            <input name="hisId" placeholder="指定 hisId">
-            <button type="submit">查询指定 hisId 状态与结果</button>
-          </form>
-        </div>
-        <div>
-          <h3>总线入口：517268</h3>
-          <form id="busForm" class="form-grid">
-            <input name="iRequestData" placeholder="i_request_data，如 authorization / aitest_devops_batch" required>
-            <input name="iResource" value="0" placeholder="i_resource">
-            <input name="iSysid" value="长江e号" placeholder="i_sysid">
-            <input name="iSysver" placeholder="i_sysver">
-            <button type="submit">执行 517268 分发</button>
-          </form>
-        </div>
-      </div>
-      <div class="block">
-        <h3>执行输出</h3>
-        <pre id="executionOutput"></pre>
-      </div>
-      <div class="block">
-        <h3>执行历史</h3>
-        <table class="table" id="executionTable">
-          <thead>
-          <tr>
-            <th>hisId</th>
-            <th>模式</th>
-            <th>版本</th>
-            <th>状态</th>
-            <th>通过率</th>
-            <th>开始时间</th>
-            <th>结束时间</th>
-          </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="logs" class="panel">
-      <h2>日志管理</h2>
-      <div class="block">
-        <h3>50000 环境日志指令</h3>
-<pre>cd /home/projects
-tail -f nohup.out
-
-cd /home/cjas22000
-tail -f appserver.log
-tail -f nohup.log</pre>
-      </div>
-      <div class="block">
-        <h3>30000 环境日志指令</h3>
-<pre>cd /data/cjas22000
-tail -f appserver.log
-tail -f nohup.log</pre>
-      </div>
-      <p class="warn">安全提示：生产账号密码不要写入平台页面，请使用安全配置中心注入。</p>
-    </section>
-
-    <section id="urls" class="panel">
-      <h2>常用网址</h2>
-      <ul>
-        <li><a href="http://172.19.181.62:8061/index.html" target="_blank">工具箱地址</a></li>
-        <li><a href="http://172.19.181.188:8061/test_func.html" target="_blank">50000环境功能号测试</a></li>
-        <li><a href="http://172.19.181.184:8061/test_func.html" target="_blank">30000环境功能号测试</a></li>
-      </ul>
-    </section>
-
-    <section id="troubleshooting" class="panel">
-      <h2>故障处理</h2>
-      <ul>
-        <li>接口新增失败：检查 funcNo + sysId 唯一性。</li>
-        <li>案例新增失败：检查 caseId + sysId 唯一性。</li>
-        <li>hisId 查询失败：确认执行任务是否已创建并完成。</li>
-        <li>紧急恢复流程：停止流量 -> 切换备用版本 -> 回滚上一个稳定包。</li>
-      </ul>
-    </section>
-
-    <section id="security" class="panel">
-      <h2>安全措施</h2>
-      <ul>
-        <li>数据加密：敏感字段脱敏存储。</li>
-        <li>访问控制：建议接入统一认证中心。</li>
-        <li>防火墙设置：限制来源网段。</li>
-        <li>安全审计：定期导出执行日志与异常日志。</li>
-      </ul>
-    </section>
-
-    <section id="maintenance" class="panel">
-      <h2>维护计划</h2>
-      <ul>
-        <li>每周更新：依赖补丁、脚本优化。</li>
-        <li>每月优化：执行效率与历史归档。</li>
-        <li>每季度演练：故障切换与恢复演练。</li>
-      </ul>
-    </section>
-
-    <section id="appendix" class="panel">
-      <h2>附录</h2>
-      <ul>
-        <li>接口文档：请在企业内网文档系统维护。</li>
-        <li>技术支持：平台运维群 + 邮箱工单。</li>
-      </ul>
-    </section>
-  </main>
+    </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
 <script src="./assets/java-pages.js"></script>
 </body>
 </html>
