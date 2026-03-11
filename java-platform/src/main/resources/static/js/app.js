@@ -254,8 +254,8 @@ function renderAiInterfaceCandidates(candidates) {
         <td>
             <div class="table-actions">
                 <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳入库"}</button>
-                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}">${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
-                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}">删除</button>
+                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
+                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>删除</button>
             </div>
         </td>
       </tr>
@@ -710,13 +710,6 @@ function collectSelectedTempIds() {
         .filter((item) => Number.isFinite(item));
 }
 
-function collectSelectedTempIdsForDelete() {
-    return latestAiInterfaceCandidates
-        .filter((item) => item.selected)
-        .map((item) => Number(item.tempId))
-        .filter((item) => Number.isFinite(item));
-}
-
 async function deleteTempCases(tempIds) {
     await http("/api/ai/interface-cases/temp/delete", {
         method: "POST",
@@ -772,6 +765,10 @@ aiInterfaceTableBody.addEventListener("click", async (event) => {
     }
 
     if (action === "edit") {
+        if (candidate.status === 1) {
+            aiPreCaseMessage.textContent = "已入库案例不允许修改";
+            return;
+        }
         const editing = Boolean(aiInterfaceEditState.get(tempId));
         if (!editing) {
             aiInterfaceEditState.set(tempId, true);
@@ -933,7 +930,7 @@ aiInterfaceSaveRunBtn.addEventListener("click", async () => {
 });
 
 aiInterfaceDeleteBtn.addEventListener("click", async () => {
-    const selectedIds = collectSelectedTempIdsForDelete();
+    const selectedIds = collectSelectedTempIds();
     if (selectedIds.length === 0) {
         aiPreCaseMessage.textContent = "请先勾选需要删除的预生成案例";
         return;

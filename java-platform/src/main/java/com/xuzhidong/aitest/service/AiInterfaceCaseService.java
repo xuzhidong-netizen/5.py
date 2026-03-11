@@ -214,10 +214,9 @@ public class AiInterfaceCaseService {
         if (tempCase == null) {
             throw new IllegalArgumentException("预生成案例不存在: " + request.tempId());
         }
-        boolean wasStored = tempCase.getStatus() == 1;
-        String originalSysId = tempCase.getSysId();
-        Long originalCaseId = tempCase.getCaseId();
-        Long originalCaseRecordId = tempCase.getCaseRecordId();
+        if (tempCase.getStatus() == 1) {
+            throw new IllegalArgumentException("已入库案例不允许修改");
+        }
 
         patchText(request.sysId(), tempCase::setSysId);
         patchText(request.sysName(), tempCase::setSysName);
@@ -248,19 +247,8 @@ public class AiInterfaceCaseService {
         validateCandidate(candidate);
         tempCase.setValid(candidate.isValid());
         tempCase.setValidationMessage(candidate.getValidationMessage());
-        if (wasStored) {
-            if (!candidate.isValid()) {
-                throw new IllegalArgumentException("已入库案例修改后必填字段不完整，无法保存");
-            }
-            AiCase updatedCase = toCase(candidate);
-            Long syncedRecordId = syncStoredCase(tempCase, updatedCase, originalCaseRecordId, originalSysId, originalCaseId);
-            tempCase.setCaseRecordId(syncedRecordId);
-            tempCase.setStatus(1);
-            tempCase.setStatusMessage("已入库(已更新)");
-        } else {
-            tempCase.setStatus(0);
-            tempCase.setStatusMessage("待人工审核");
-        }
+        tempCase.setStatus(0);
+        tempCase.setStatusMessage("待人工审核");
         return tempCase;
     }
 
@@ -275,9 +263,6 @@ public class AiInterfaceCaseService {
             }
             PreGeneratedCase removed = tempCases.remove(tempId);
             if (removed != null) {
-                if (removed.getStatus() == 1) {
-                    deleteStoredCase(removed);
-                }
                 tempCaseOrder.remove(tempId);
                 deleted += 1;
             }
@@ -339,7 +324,6 @@ public class AiInterfaceCaseService {
             if (item.isSuccess()) {
                 tempCase.setStatus(1);
                 tempCase.setStatusMessage("已入库");
-                tempCase.setCaseRecordId(item.getCaseRecordId());
                 if (item.isFunctionCreated()) {
                     functionCreatedCount += 1;
                 }
@@ -371,49 +355,6 @@ public class AiInterfaceCaseService {
         result.setExecutionHisId(executionHisId);
         result.setExecution(execution);
         return result;
-    }
-
-    private Long syncStoredCase(
-        PreGeneratedCase tempCase,
-        AiCase updatedCase,
-        Long originalCaseRecordId,
-        String originalSysId,
-        Long originalCaseId
-    ) {
-        if (originalCaseRecordId != null) {
-            try {
-                AiCase updated = store.updateCase(originalCaseRecordId, updatedCase);
-                return updated.getId();
-            } catch (IllegalArgumentException ignored) {
-                // fallback to business key
-            }
-        }
-
-        if (!isBlank(originalSysId) && originalCaseId != null) {
-            AiCase updated = store.updateCaseByBusinessKey(originalSysId, originalCaseId, updatedCase);
-            return updated.getId();
-        }
-
-        if (!isBlank(tempCase.getSysId()) && tempCase.getCaseId() != null) {
-            AiCase updated = store.updateCaseByBusinessKey(tempCase.getSysId(), tempCase.getCaseId(), updatedCase);
-            return updated.getId();
-        }
-
-        throw new IllegalArgumentException("已入库案例缺少定位信息，无法修改");
-    }
-
-    private void deleteStoredCase(PreGeneratedCase tempCase) {
-        boolean deleted = false;
-        if (tempCase.getCaseRecordId() != null) {
-            deleted = store.deleteCaseByRecordId(tempCase.getCaseRecordId());
-        }
-        if (!deleted && !isBlank(tempCase.getSysId()) && tempCase.getCaseId() != null) {
-            deleted = store.deleteCaseByBusinessKey(tempCase.getSysId(), tempCase.getCaseId());
-        }
-        if (!deleted) {
-            store.findCaseByBusinessKey(tempCase.getSysId(), tempCase.getCaseId())
-                .ifPresent(item -> store.deleteCaseByRecordId(item.getId()));
-        }
     }
 
     private SaveItemResult persistCandidate(Candidate candidate) {
@@ -1271,7 +1212,6 @@ public class AiInterfaceCaseService {
         private String generationId;
         private Integer status;
         private String statusMessage;
-        private Long caseRecordId;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -1332,14 +1272,6 @@ public class AiInterfaceCaseService {
 
         public void setStatusMessage(String statusMessage) {
             this.statusMessage = statusMessage;
-        }
-
-        public Long getCaseRecordId() {
-            return caseRecordId;
-        }
-
-        public void setCaseRecordId(Long caseRecordId) {
-            this.caseRecordId = caseRecordId;
         }
 
         public LocalDateTime getCreatedAt() {
