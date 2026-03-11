@@ -1,243 +1,129 @@
-# 自动化测试平台
+# 自动化测试平台 V2（Spring Boot + Vue）
 
-一个可直接运行的自动化测试平台，内置：
+本仓库已重构为前后端分离架构：
 
-- 测试套件管理
-- HTTP 接口测试用例管理
-- 断言配置（状态码、响应内容、JSON 路径断言、耗时）
-- 手动执行与执行历史
-- 定时调度执行
-- 可视化控制台
-- Docker 部署
-- GitHub Actions 持续集成
-- GitHub Pages 静态演示版
-- GHCR 镜像自动发布
-- Render / Railway 云端部署配置
-- Web 金融页面自动化测试矩阵
+- 前端：`frontend`（Vue 3 + Vue Router + Vuex + Axios + Element Plus）
+- 后端：`backend`（Spring Boot 3 + Spring Security + JWT + JPA + Swagger）
+- 数据库：MySQL（默认）
 
-## 技术栈
+线上地址（当前 Pages 演示）：[https://xuzhidong-netizen.github.io/5.py/](https://xuzhidong-netizen.github.io/5.py/)
 
-- 后端：FastAPI
-- 存储：SQLite + SQLAlchemy
-- 调度：APScheduler
-- 前端：内置静态控制台（HTML/CSS/Vanilla JS）
-- Web 测试工具编排：pytest / Playwright / Locust / OWASP ZAP
+## 1. 重构目标
 
-## 启动
+- 架构解耦：前后端独立开发、独立部署
+- 模块化：按业务模块拆分后端代码，提升可维护性
+- 安全性：引入 JWT 认证与权限控制
+- 测试闭环：补齐后端集成测试与前端单元测试基线
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-uvicorn app.main:app --reload
+## 2. 目录结构
+
+```text
+.
+├── backend/                     # Spring Boot API 服务
+│   ├── src/main/java/com/autotest/platform
+│   │   ├── auth/               # 注册、登录、JWT、用户
+│   │   ├── casecenter/         # 测试用例管理
+│   │   ├── execution/          # 执行中心
+│   │   ├── dashboard/          # 概览统计
+│   │   ├── aitest/             # AI 文档/用例生成（模块化入口）
+│   │   ├── config/             # Security、OpenAPI、初始化
+│   │   └── common/             # 公共响应与异常处理
+│   └── src/test/               # Spring Boot 集成测试
+├── frontend/                    # Vue 前端
+│   ├── src/api                 # Axios API 封装
+│   ├── src/store               # Vuex 全局状态
+│   ├── src/router              # 路由与权限守卫
+│   ├── src/views               # 业务页面
+│   └── tests/                  # 前端测试
+├── docker-compose.yml          # 前后端分离 + MySQL + Redis
+└── ...                         # legacy 目录（旧实现保留）
 ```
 
-打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。
+## 3. 本地启动
 
-## Docker
+### 3.1 启动后端
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+默认地址：`http://localhost:8080`
+
+Swagger：`http://localhost:8080/swagger-ui/index.html`
+
+默认种子管理员：
+
+- 用户名：`admin`
+- 密码：`admin123`
+
+### 3.2 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+默认地址：`http://localhost:5173`
+
+## 4. 容器化部署
 
 ```bash
 docker compose up --build
 ```
 
-默认数据文件会持久化到 `./data/autotest.db`。
+服务端口：
 
-## 发布
+- 前端：`http://localhost:5173`
+- 后端：`http://localhost:8080`
+- MySQL：`localhost:3306`
+- Redis：`localhost:6379`
 
-### GitHub Actions
+## 5. 核心 API（V2）
 
-仓库已内置三个工作流：
+- 认证：
+  - `POST /api/v1/auth/register`
+  - `POST /api/v1/auth/login`
+  - `GET /api/v1/auth/me`
+- 概览：
+  - `GET /api/v1/dashboard`
+- 用例管理：
+  - `GET /api/v1/cases`
+  - `POST /api/v1/cases`
+  - `PUT /api/v1/cases/{id}`
+  - `DELETE /api/v1/cases/{id}`
+- 执行中心：
+  - `POST /api/v1/executions`
+  - `GET /api/v1/executions`
+  - `GET /api/v1/executions/{runId}`
+- AI 模块：
+  - `POST /api/v1/ai/generate-docs`
+  - `POST /api/v1/ai/generate-cases`
 
-- `CI`: 运行测试
-- `Pages`: 将 `docs/` 发布到 `5.py` 自己的 GitHub Pages（地址：`https://xuzhidong-netizen.github.io/5.py/`）
-- `Docker Publish`: 将镜像发布到 `ghcr.io/xuzhidong-netizen/autotest-platform`
+## 6. 测试
 
-### GitHub Pages
-
-静态版源码位于 `docs/`，适合展示平台 UI，也支持连接真实 API。
-
-建议在 GitHub 仓库设置中将 Pages Source 设为 `GitHub Actions`。
-如果当前第一次启用 Pages，请到：
-`Settings -> Pages -> Build and deployment -> Source -> GitHub Actions`
-
-如果静态站要连接云端后端，请在后端环境变量中配置 `CORS_ORIGINS`。
-
-### 云端部署
-
-仓库内已包含：
-
-- `Dockerfile`
-- `docker-compose.yml`
-- `render.yaml`
-- `railway.json`
-
-如果你配置了仓库 Secrets：
-
-- `RENDER_API_KEY`
-- `RENDER_SERVICE_ID`
-
-则 `Render Deploy` 工作流会在推送到 `main` 后自动触发部署。
-
-## 核心能力
-
-### 1. 测试套件
-
-每个套件支持独立 `Base URL`，可维护多条测试用例。
-
-### 2. 测试用例
-
-每个用例支持配置：
-
-- HTTP Method
-- 路径
-- Header / Query / Body
-- 期望状态码
-- 期望响应包含文本
-- JSON 断言列表
-- 最大响应时间
-
-JSON 断言格式示例：
-
-```json
-[
-  {"path": "data.user.id", "operator": "eq", "expected": 1},
-  {"path": "success", "operator": "eq", "expected": true}
-]
-```
-
-支持的操作符：
-
-- `eq`
-- `ne`
-- `contains`
-- `gt`
-- `gte`
-- `lt`
-- `lte`
-
-### 3. 定时调度
-
-支持两种调度模式：
-
-- 按分钟间隔执行
-- Cron 表达式执行
-
-### 4. 执行历史
-
-平台会记录：
-
-- 套件执行状态
-- 每条用例的请求信息
-- 响应状态
-- 耗时
-- 失败原因
-
-### 5. Web 金融页面自动化测试
-
-平台新增了面向金融 Web 页面的多类型测试编排能力，支持：
-
-- 单元测试
-- 集成测试
-- 功能测试
-- 稳定性测试
-- 安全测试
-
-你可以在平台中创建 `Web 测试项目`，配置：
-
-- 目标地址
-- 本地代码目录
-- 金融关键路径，例如登录、行情、持仓、交易、转账、对账单
-- 页面断言选择器
-- 稳定性压测参数
-- 各类测试的命令覆盖
-
-平台会自动生成测试脚手架到 `generated/web_finance/<project-id>-<slug>/`，并通过常规工具执行。
-
-### 6. 常规测试工具集成
-
-本项目集成了以下官方常规工具：
-
-- `pytest`
-  - 用途：单元测试、集成测试
-  - 文档：[pytest markers](https://docs.pytest.org/en/stable/how-to/mark.html)
-- `Playwright`
-  - 用途：功能测试、真实浏览器页面验证
-  - 文档：[Playwright Python](https://playwright.dev/python/docs/intro)
-- `Locust`
-  - 用途：稳定性测试、并发访问压测
-  - 文档：[Locust headless mode](https://docs.locust.io/en/latest/running-without-web-ui.html)
-- `OWASP ZAP Baseline`
-  - 用途：安全测试、基线安全扫描
-  - 文档：[ZAP baseline scan](https://www.zaproxy.org/docs/docker/baseline-scan/)
-
-这是基于官方文档做的工程选型，用于覆盖金融 Web 常见测试矩阵。
-
-### 7. 安装 Web 测试依赖
+后端：
 
 ```bash
-pip install -e '.[dev,webtest]'
-python -m playwright install chromium
+cd backend
+mvn test
 ```
 
-如果需要安全扫描，请确保本机已安装 Docker：
+前端：
 
 ```bash
-docker pull ghcr.io/zaproxy/zaproxy:stable
+cd frontend
+npm test
 ```
 
-## API 概览
+## 7. 优化建议（下一阶段）
 
-- `GET /api/dashboard`
-- `GET /api/suites`
-- `POST /api/suites`
-- `GET /api/suites/{suite_id}`
-- `POST /api/cases`
-- `PUT /api/cases/{case_id}`
-- `POST /api/runs/suite/{suite_id}`
-- `GET /api/runs`
-- `GET /api/runs/{run_id}`
-- `GET /api/schedules`
-- `POST /api/schedules`
-- `PUT /api/schedules/{schedule_id}`
-- `GET /api/tool-catalog`
-- `GET /api/web-projects`
-- `POST /api/web-projects`
-- `GET /api/web-projects/{project_id}`
-- `POST /api/web-projects/{project_id}/scaffold`
-- `POST /api/web-runs/project/{project_id}`
-- `GET /api/web-runs`
-- `GET /api/web-runs/{run_id}`
+1. 引入 Redis 缓存热点概览与执行结果。
+2. 为执行中心增加异步任务队列（如 Spring @Async / MQ）。
+3. 增加接口压测流水线（JMeter/Gatling）并纳入 CI。
+4. 将 AI 模块接入真实 LLM Provider，并增加审计日志。
 
-## Java 平台 AI 模块
+## 8. 兼容说明
 
-`java-platform` 中新增了接口定义驱动的 AI 用例生成与执行链：
-
-- `POST /api/generate-docs`：接口文档生成（Markdown + OpenAPI）
-- `POST /api/generate-docs/import`：导入 OpenAPI 文档（JSON/YAML）并批量生成接口文档
-  - 返回 `aiParticipated`、`aiEngines`、`remoteLlmUsedCount`、`fallbackAiUsedCount`，可确认 AI 参与情况
-- `POST /api/generate-cases`：生成并入库测试用例
-- `POST /api/generate-cases/import`：导入 OpenAPI 文档（JSON/YAML）并批量生成测试用例
-  - 返回 `aiParticipated`、`aiEngines`、`remoteLlmUsedCount`、`fallbackAiUsedCount`，可确认 AI 参与情况
-- `POST /api/execute-cases`：执行指定用例并返回 `runId`
-- `GET /api/results?runId=...`：查询执行结果（可按 `runId` 过滤）
-- `POST /api/test/generate`：输入接口定义，生成并入库测试用例
-- `POST /api/test/execute`：执行指定用例 ID 列表
-
-## 默认演示数据
-
-首次启动时会自动写入：
-
-- 一个“平台自检”演示套件，默认请求 `http://127.0.0.1:8000/health`
-- 一个“金融站点示例项目”，已预置登录、行情、持仓、交易、转账、账单路径
-
-因此建议按默认 `8000` 端口启动。可以通过环境变量关闭：
-
-```bash
-AUTO_SEED_DEMO=false
-```
-
-## 测试
-
-```bash
-pytest
-```
+旧实现（Python FastAPI、旧 Java 页面、`docs` 静态页）仍在仓库中，已标记为 legacy 参考，不作为 V2 主运行路径。
