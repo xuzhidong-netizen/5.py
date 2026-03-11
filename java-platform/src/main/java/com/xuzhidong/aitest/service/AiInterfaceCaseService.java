@@ -214,9 +214,10 @@ public class AiInterfaceCaseService {
         if (tempCase == null) {
             throw new IllegalArgumentException("预生成案例不存在: " + request.tempId());
         }
-        if (tempCase.getStatus() == 1) {
-            throw new IllegalArgumentException("已入库案例不允许修改");
-        }
+        boolean wasStored = tempCase.getStatus() == 1;
+        String originalSysId = tempCase.getSysId();
+        Long originalCaseId = tempCase.getCaseId();
+        Long originalCaseRecordId = tempCase.getCaseRecordId();
 
         patchText(request.sysId(), tempCase::setSysId);
         patchText(request.sysName(), tempCase::setSysName);
@@ -247,8 +248,19 @@ public class AiInterfaceCaseService {
         validateCandidate(candidate);
         tempCase.setValid(candidate.isValid());
         tempCase.setValidationMessage(candidate.getValidationMessage());
-        tempCase.setStatus(0);
-        tempCase.setStatusMessage("待人工审核");
+        if (wasStored) {
+            if (!candidate.isValid()) {
+                throw new IllegalArgumentException("已入库案例修改后必填字段不完整，无法保存");
+            }
+            AiCase updatedCase = toCase(candidate);
+            Long syncedRecordId = syncStoredCase(tempCase, updatedCase, originalCaseRecordId, originalSysId, originalCaseId);
+            tempCase.setCaseRecordId(syncedRecordId);
+            tempCase.setStatus(1);
+            tempCase.setStatusMessage("已入库(已更新)");
+        } else {
+            tempCase.setStatus(0);
+            tempCase.setStatusMessage("待人工审核");
+        }
         return tempCase;
     }
 
@@ -263,6 +275,9 @@ public class AiInterfaceCaseService {
             }
             PreGeneratedCase removed = tempCases.remove(tempId);
             if (removed != null) {
+                if (removed.getStatus() == 1) {
+                    deleteStoredCase(removed);
+                }
                 tempCaseOrder.remove(tempId);
                 deleted += 1;
             }
@@ -324,6 +339,7 @@ public class AiInterfaceCaseService {
             if (item.isSuccess()) {
                 tempCase.setStatus(1);
                 tempCase.setStatusMessage("已入库");
+                tempCase.setCaseRecordId(item.getCaseRecordId());
                 if (item.isFunctionCreated()) {
                     functionCreatedCount += 1;
                 }
@@ -355,6 +371,74 @@ public class AiInterfaceCaseService {
         result.setExecutionHisId(executionHisId);
         result.setExecution(execution);
         return result;
+    }
+
+    public BatchActionResult cancelStoreTempCases(List<Long> tempIds) {
+        if (tempIds == null || tempIds.isEmpty()) {
+            throw new IllegalArgumentException("请选择要取消入库的案例");
+        }
+        int affected = 0;
+        for (Long tempId : tempIds) {
+            if (tempId == null) {
+                continue;
+            }
+            PreGeneratedCase tempCase = tempCases.get(tempId);
+            if (tempCase == null || tempCase.getStatus() != 1) {
+                continue;
+            }
+            deleteStoredCase(tempCase);
+            tempCase.setStatus(0);
+            tempCase.setStatusMessage("待人工审核(已取消入库)");
+            tempCase.setCaseRecordId(null);
+            tempCase.setUpdatedAt(LocalDateTime.now());
+            affected += 1;
+        }
+        BatchActionResult result = new BatchActionResult();
+        result.setAction("cancelStore");
+        result.setAffectedCount(affected);
+        result.setMessage("取消入库完成");
+        return result;
+    }
+
+    private Long syncStoredCase(
+        PreGeneratedCase tempCase,
+        AiCase updatedCase,
+        Long originalCaseRecordId,
+        String originalSysId,
+        Long originalCaseId
+    ) {
+        Optional<AiFunction> existing = store.findFunction(updatedCase.getSysId(), updatedCase.getFuncNo());
+        if (existing.isEmpty()) {
+            throw new IllegalArgumentException("请先在接口表 T_AI_FUNCTION 中补充功能号信息");
+        }
+        AiFunction function = existing.get();
+        updatedCase.setFuncName(function.getFuncName());
+        updatedCase.setFuncType(function.getFuncType());
+        updatedCase.setSubFuncType(function.getSubFuncType());
+
+        AiCase saved;
+        if (originalCaseRecordId != null) {
+            saved = store.updateCase(originalCaseRecordId, updatedCase);
+        } else {
+            Optional<AiCase> byBusinessKey = store.findCaseByBusinessKey(originalSysId, originalCaseId);
+            if (byBusinessKey.isPresent()) {
+                saved = store.updateCase(byBusinessKey.get().getId(), updatedCase);
+            } else {
+                saved = store.addCase(updatedCase);
+            }
+        }
+        tempCase.setCaseId(saved.getCaseId());
+        return saved.getId();
+    }
+
+    private void deleteStoredCase(PreGeneratedCase tempCase) {
+        boolean removed = false;
+        if (tempCase.getCaseRecordId() != null) {
+            removed = store.deleteCaseByRecordId(tempCase.getCaseRecordId());
+        }
+        if (!removed) {
+            store.deleteCaseByBusinessKey(tempCase.getSysId(), tempCase.getCaseId());
+        }
     }
 
     private SaveItemResult persistCandidate(Candidate candidate) {
@@ -1241,6 +1325,7 @@ public class AiInterfaceCaseService {
         private String caseRemark;
         private String businessGoal;
         private String scenario;
+        private Long caseRecordId;
 
         public Long getTempId() {
             return tempId;
@@ -1488,6 +1573,14 @@ public class AiInterfaceCaseService {
 
         public void setScenario(String scenario) {
             this.scenario = scenario;
+        }
+
+        public Long getCaseRecordId() {
+            return caseRecordId;
+        }
+
+        public void setCaseRecordId(Long caseRecordId) {
+            this.caseRecordId = caseRecordId;
         }
     }
 

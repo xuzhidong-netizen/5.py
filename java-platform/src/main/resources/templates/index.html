@@ -17,7 +17,8 @@
                 <div class="menu-group-items">
                     <button data-panel="aiDocs" class="active">接口文档生成</button>
                     <button data-panel="aiInterfaceCases">AI生成接口案例</button>
-                    <button data-panel="aiPreCases">测试案例管理</button>
+                    <button data-panel="aiPreCases">待采纳案例</button>
+                    <button data-panel="aiPublishedCases">已入库案例</button>
                     <button data-panel="aiExecute">用例执行</button>
                     <button data-panel="aiResults">执行结果</button>
                 </div>
@@ -65,7 +66,7 @@
         </section>
 
         <section id="aiPreCases" class="panel">
-            <h2>Ai测试 · 测试案例管理</h2>
+            <h2>Ai测试 · 待采纳案例</h2>
             <div class="actions">
                 <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
                 <button id="aiInterfaceSaveRunBtn" type="button">批量入库并执行</button>
@@ -74,9 +75,7 @@
                 <button id="aiInterfaceReloadBtn" type="button">刷新</button>
                 <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
                 <select id="aiInterfaceFilterStatus">
-                    <option value="all">全部状态</option>
                     <option value="pending">仅未入库</option>
-                    <option value="stored">仅已入库</option>
                     <option value="valid">仅可入库</option>
                     <option value="invalid">仅不可入库</option>
                     <option value="selected">仅已采纳</option>
@@ -139,6 +138,35 @@
                     <tbody></tbody>
                 </table>
             </div>
+        </section>
+
+        <section id="aiPublishedCases" class="panel">
+            <h2>Ai测试 · 已入库案例</h2>
+            <div class="actions">
+                <button id="aiPublishedSelectAllBtn" type="button">全选/取消全选</button>
+                <button id="aiPublishedDeleteBtn" type="button">批量删除</button>
+                <button id="aiPublishedCancelBtn" type="button">批量取消入库</button>
+                <button id="aiPublishedReloadBtn" type="button">刷新</button>
+                <input id="aiPublishedFilterKeyword" type="text" placeholder="搜索 caseName / funcNo / sysId"/>
+            </div>
+            <div id="aiPublishedStats" class="stats-line"></div>
+            <table class="table" id="aiPublishedTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>tempId</th>
+                    <th>caseName</th>
+                    <th>funcNo</th>
+                    <th>请求方式</th>
+                    <th>接口地址</th>
+                    <th>状态</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiPublishedMessage" class="message"></div>
         </section>
 
         <section id="aiDocs" class="panel active">

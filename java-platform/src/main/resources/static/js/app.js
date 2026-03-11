@@ -44,6 +44,14 @@ const aiInterfaceSaveTableBody = document.querySelector("#aiInterfaceSaveTable t
 const aiInterfaceExecutionTableBody = document.querySelector("#aiInterfaceExecutionTable tbody");
 const aiInterfaceMessage = document.getElementById("aiInterfaceMessage");
 const aiPreCaseMessage = document.getElementById("aiPreCaseMessage");
+const aiPublishedSelectAllBtn = document.getElementById("aiPublishedSelectAllBtn");
+const aiPublishedDeleteBtn = document.getElementById("aiPublishedDeleteBtn");
+const aiPublishedCancelBtn = document.getElementById("aiPublishedCancelBtn");
+const aiPublishedReloadBtn = document.getElementById("aiPublishedReloadBtn");
+const aiPublishedFilterKeyword = document.getElementById("aiPublishedFilterKeyword");
+const aiPublishedStats = document.getElementById("aiPublishedStats");
+const aiPublishedTableBody = document.querySelector("#aiPublishedTable tbody");
+const aiPublishedMessage = document.getElementById("aiPublishedMessage");
 
 const aiDocForm = document.getElementById("aiDocForm");
 const aiDocImportFile = document.getElementById("aiDocImportFile");
@@ -250,12 +258,12 @@ function renderAiInterfaceCandidates(candidates) {
         <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseId" value="${escapeHtml(String(item.caseId ?? ""))}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
         <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
         <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="moduleName" value="${escapeHtml(item.moduleName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
-        <td>${item.status === 1 ? "已入库" : "未入库"}<br>${item.validationMessage || item.statusMessage || "-"}</td>
+        <td>待采纳<br>${item.validationMessage || item.statusMessage || "-"}</td>
         <td>
             <div class="table-actions">
-                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳入库"}</button>
-                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
-                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>删除</button>
+                <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.valid === false ? "disabled" : ""}>${item.valid === false ? "不可采纳" : "采纳入库"}</button>
+                <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}">${aiInterfaceEditState.get(item.tempId) ? "完成" : "编辑"}</button>
+                <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}">删除</button>
             </div>
         </td>
       </tr>
@@ -265,12 +273,12 @@ function renderAiInterfaceCandidates(candidates) {
 
 function filterAiInterfaceCandidates(candidates) {
     const keyword = String(aiInterfaceFilterKeyword?.value || "").trim().toLowerCase();
-    const status = String(aiInterfaceFilterStatus?.value || "all");
+    const status = String(aiInterfaceFilterStatus?.value || "pending");
     return (candidates || []).filter((item) => {
-        if (status === "pending" && item.status !== 0) {
+        if (item.status !== 0) {
             return false;
         }
-        if (status === "stored" && item.status !== 1) {
+        if (status === "pending" && item.status !== 0) {
             return false;
         }
         if (status === "valid" && !item.valid) {
@@ -308,6 +316,66 @@ function renderAiInterfaceStats(candidates) {
     const selected = (candidates || []).filter((item) => item.selected).length;
     const invalid = pending - valid;
     aiInterfaceStats.textContent = `预生成总数: ${total} | 未入库: ${pending} | 已入库: ${stored} | 可入库: ${valid} | 不可入库: ${invalid} | 已采纳: ${selected}`;
+}
+
+function filterPublishedCandidates(candidates) {
+    const keyword = String(aiPublishedFilterKeyword?.value || "").trim().toLowerCase();
+    return (candidates || []).filter((item) => {
+        if (item.status !== 1) {
+            return false;
+        }
+        if (!keyword) {
+            return true;
+        }
+        const text = [
+            item.sysId,
+            item.sysName,
+            item.funcNo,
+            item.funcName,
+            item.caseName,
+            item.moduleName,
+            item.funcHttpUrl,
+            item.funcRequestMethod
+        ].map((val) => String(val || "").toLowerCase()).join("|");
+        return text.includes(keyword);
+    });
+}
+
+function renderPublishedStats(candidates) {
+    if (!aiPublishedStats) {
+        return;
+    }
+    const published = (candidates || []).filter((item) => item.status === 1);
+    const total = published.length;
+    const selected = published.filter((item) => item.selected).length;
+    aiPublishedStats.textContent = `已入库总数: ${total} | 已勾选: ${selected}`;
+}
+
+function renderPublishedCandidates(candidates) {
+    if (!aiPublishedTableBody) {
+        return;
+    }
+    const visibleCandidates = filterPublishedCandidates(candidates);
+    aiPublishedTableBody.innerHTML = visibleCandidates.map((item) => `
+      <tr>
+        <td><input type="checkbox" class="ai-published-checkbox" value="${item.tempId}" ${item.selected ? "checked" : ""}></td>
+        <td>${item.tempId ?? "-"}</td>
+        <td><input class="table-input ai-published-field" data-id="${item.tempId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-published-field" data-id="${item.tempId}" data-field="funcNo" value="${escapeHtml(item.funcNo || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-published-field" data-id="${item.tempId}" data-field="funcRequestMethod" value="${escapeHtml(item.funcRequestMethod || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td><input class="table-input ai-published-field" data-id="${item.tempId}" data-field="funcHttpUrl" value="${escapeHtml(item.funcHttpUrl || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
+        <td>已入库</td>
+        <td>${item.updatedAt || "-"}</td>
+        <td>
+            <div class="table-actions">
+                <button type="button" class="table-btn table-btn-secondary ai-published-action" data-action="edit" data-id="${item.tempId}">${aiInterfaceEditState.get(item.tempId) ? "保存" : "修改"}</button>
+                <button type="button" class="table-btn table-btn-danger ai-published-action" data-action="delete" data-id="${item.tempId}">删除</button>
+                <button type="button" class="table-btn ai-published-action" data-action="cancel-publish" data-id="${item.tempId}">取消入库</button>
+            </div>
+        </td>
+      </tr>
+    `).join("");
+    renderPublishedStats(candidates);
 }
 
 function escapeHtml(value) {
@@ -380,6 +448,7 @@ async function loadTempCases() {
         };
     });
     renderAiInterfaceCandidates(latestAiInterfaceCandidates);
+    renderPublishedCandidates(latestAiInterfaceCandidates);
     return latestAiInterfaceCandidates;
 }
 
@@ -710,8 +779,22 @@ function collectSelectedTempIds() {
         .filter((item) => Number.isFinite(item));
 }
 
+function collectSelectedPublishedTempIds() {
+    return latestAiInterfaceCandidates
+        .filter((item) => item.selected && item.status === 1)
+        .map((item) => Number(item.tempId))
+        .filter((item) => Number.isFinite(item));
+}
+
 async function deleteTempCases(tempIds) {
     await http("/api/ai/interface-cases/temp/delete", {
+        method: "POST",
+        body: JSON.stringify({ tempIds })
+    });
+}
+
+async function cancelStoreTempCases(tempIds) {
+    return http("/api/ai/interface-cases/temp/cancel-store", {
         method: "POST",
         body: JSON.stringify({ tempIds })
     });
@@ -818,6 +901,118 @@ aiInterfaceTableBody.addEventListener("click", async (event) => {
     }
 });
 
+if (aiPublishedTableBody) {
+    aiPublishedTableBody.addEventListener("input", (event) => {
+        const input = event.target.closest(".ai-published-field");
+        if (!input) {
+            return;
+        }
+        const tempId = Number(input.dataset.id);
+        const field = input.dataset.field;
+        const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
+        if (!candidate || !field) {
+            return;
+        }
+        candidate[field] = input.value;
+        validateAiInterfaceCandidate(candidate);
+        renderPublishedStats(latestAiInterfaceCandidates);
+    });
+
+    aiPublishedTableBody.addEventListener("change", (event) => {
+        const checkbox = event.target.closest(".ai-published-checkbox");
+        if (!checkbox) {
+            return;
+        }
+        const tempId = Number(checkbox.value);
+        const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
+        if (!candidate) {
+            return;
+        }
+        candidate.selected = checkbox.checked;
+        renderPublishedStats(latestAiInterfaceCandidates);
+    });
+
+    aiPublishedTableBody.addEventListener("click", async (event) => {
+        const button = event.target.closest(".ai-published-action");
+        if (!button) {
+            return;
+        }
+        const action = button.dataset.action;
+        const tempId = Number(button.dataset.id);
+        const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
+        if (!candidate) {
+            return;
+        }
+
+        if (action === "edit") {
+            const editing = Boolean(aiInterfaceEditState.get(tempId));
+            if (!editing) {
+                aiInterfaceEditState.set(tempId, true);
+                renderPublishedCandidates(latestAiInterfaceCandidates);
+                return;
+            }
+            setButtonBusy(button, true, "保存中...");
+            try {
+                validateAiInterfaceCandidate(candidate);
+                if (!candidate.valid) {
+                    aiPublishedMessage.textContent = "必填字段不完整，无法保存修改";
+                    return;
+                }
+                const updated = await updateTempCase(candidate);
+                const index = latestAiInterfaceCandidates.findIndex((item) => Number(item.tempId) === tempId);
+                if (index >= 0 && updated) {
+                    latestAiInterfaceCandidates[index] = {
+                        ...updated,
+                        selected: latestAiInterfaceCandidates[index].selected
+                    };
+                    validateAiInterfaceCandidate(latestAiInterfaceCandidates[index]);
+                }
+                aiPublishedMessage.textContent = `tempId=${tempId} 修改成功`;
+            } catch (error) {
+                aiPublishedMessage.textContent = `修改失败：${error.message}`;
+            } finally {
+                aiInterfaceEditState.set(tempId, false);
+                setButtonBusy(button, false);
+                await loadTempCases();
+                await refreshAll();
+            }
+            return;
+        }
+
+        if (action === "delete") {
+            if (!window.confirm("确认删除该已入库案例吗？删除后不可恢复。")) {
+                return;
+            }
+            setButtonBusy(button, true, "删除中...");
+            try {
+                await deleteTempCases([tempId]);
+                await loadTempCases();
+                await refreshAll();
+                aiPublishedMessage.textContent = `tempId=${tempId} 已删除`;
+            } catch (error) {
+                aiPublishedMessage.textContent = `删除失败：${error.message}`;
+            } finally {
+                setButtonBusy(button, false);
+            }
+            return;
+        }
+
+        if (action === "cancel-publish") {
+            setButtonBusy(button, true, "取消入库中...");
+            try {
+                const result = await cancelStoreTempCases([tempId]);
+                await loadTempCases();
+                await refreshAll();
+                aiPublishedMessage.textContent = `${result.msg}，影响 ${result.data?.affectedCount ?? 0} 条`;
+            } catch (error) {
+                aiPublishedMessage.textContent = `取消入库失败：${error.message}`;
+            } finally {
+                setButtonBusy(button, false);
+            }
+        }
+    });
+}
+
 aiInterfaceFilterKeyword.addEventListener("input", () => {
     renderAiInterfaceCandidates(latestAiInterfaceCandidates);
 });
@@ -825,6 +1020,12 @@ aiInterfaceFilterKeyword.addEventListener("input", () => {
 aiInterfaceFilterStatus.addEventListener("change", () => {
     renderAiInterfaceCandidates(latestAiInterfaceCandidates);
 });
+
+if (aiPublishedFilterKeyword) {
+    aiPublishedFilterKeyword.addEventListener("input", () => {
+        renderPublishedCandidates(latestAiInterfaceCandidates);
+    });
+}
 
 aiInterfaceFile.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -985,6 +1186,84 @@ aiInterfaceReloadBtn.addEventListener("click", async () => {
         setButtonBusy(aiInterfaceReloadBtn, false);
     }
 });
+
+if (aiPublishedSelectAllBtn) {
+    aiPublishedSelectAllBtn.addEventListener("click", () => {
+        const visible = filterPublishedCandidates(latestAiInterfaceCandidates);
+        if (visible.length === 0) {
+            aiPublishedMessage.textContent = "当前没有已入库案例";
+            return;
+        }
+        const allChecked = visible.every((item) => item.selected);
+        visible.forEach((item) => {
+            item.selected = !allChecked;
+        });
+        renderPublishedCandidates(latestAiInterfaceCandidates);
+    });
+}
+
+if (aiPublishedDeleteBtn) {
+    aiPublishedDeleteBtn.addEventListener("click", async () => {
+        const selectedIds = collectSelectedPublishedTempIds();
+        if (selectedIds.length === 0) {
+            aiPublishedMessage.textContent = "请先勾选需要删除的已入库案例";
+            return;
+        }
+        if (!window.confirm("确认删除该已入库案例吗？删除后不可恢复。")) {
+            return;
+        }
+        setButtonBusy(aiPublishedDeleteBtn, true, "删除中...");
+        try {
+            const result = await http("/api/ai/interface-cases/temp/delete", {
+                method: "POST",
+                body: JSON.stringify({ tempIds: selectedIds })
+            });
+            await loadTempCases();
+            await refreshAll();
+            aiPublishedMessage.textContent = `${result.msg}，删除 ${result.data?.affectedCount ?? 0} 条`;
+        } catch (error) {
+            aiPublishedMessage.textContent = `删除失败：${error.message}`;
+        } finally {
+            setButtonBusy(aiPublishedDeleteBtn, false);
+        }
+    });
+}
+
+if (aiPublishedCancelBtn) {
+    aiPublishedCancelBtn.addEventListener("click", async () => {
+        const selectedIds = collectSelectedPublishedTempIds();
+        if (selectedIds.length === 0) {
+            aiPublishedMessage.textContent = "请先勾选需要取消入库的案例";
+            return;
+        }
+        setButtonBusy(aiPublishedCancelBtn, true, "取消入库中...");
+        try {
+            const result = await cancelStoreTempCases(selectedIds);
+            await loadTempCases();
+            await refreshAll();
+            aiPublishedMessage.textContent = `${result.msg}，影响 ${result.data?.affectedCount ?? 0} 条`;
+        } catch (error) {
+            aiPublishedMessage.textContent = `取消入库失败：${error.message}`;
+        } finally {
+            setButtonBusy(aiPublishedCancelBtn, false);
+        }
+    });
+}
+
+if (aiPublishedReloadBtn) {
+    aiPublishedReloadBtn.addEventListener("click", async () => {
+        setButtonBusy(aiPublishedReloadBtn, true, "刷新中...");
+        try {
+            const rows = await loadTempCases();
+            const published = rows.filter((item) => item.status === 1);
+            aiPublishedMessage.textContent = `刷新成功，共 ${published.length} 条已入库案例`;
+        } catch (error) {
+            aiPublishedMessage.textContent = `刷新失败：${error.message}`;
+        } finally {
+            setButtonBusy(aiPublishedReloadBtn, false);
+        }
+    });
+}
 
 aiDocForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1357,6 +1636,7 @@ aiCaseOutput.textContent = "生成后的测试用例会显示在这里";
 aiExecuteOutput.textContent = "请选择测试用例并执行";
 aiResultOutput.textContent = "执行后可在这里查看批次结果";
 renderAiInterfaceCandidates([]);
+renderPublishedCandidates([]);
 renderAiInterfaceSaveResults([]);
 renderAiInterfaceExecution(null);
 renderGeneratedTempRows([]);

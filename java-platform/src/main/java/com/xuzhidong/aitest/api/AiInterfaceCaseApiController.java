@@ -107,6 +107,15 @@ public class AiInterfaceCaseApiController {
         }
     }
 
+    @PostMapping("/temp/cancel-store")
+    public ApiResponse<AiInterfaceCaseService.BatchActionResult> cancelStoreTempCases(@RequestBody TempIdsRequest request) {
+        try {
+            return ApiResponse.ok("取消入库成功", aiInterfaceCaseService.cancelStoreTempCases(request.tempIds()));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.fail(ex.getMessage());
+        }
+    }
+
     @PostMapping("/temp/regenerate")
     public ApiResponse<AiInterfaceCaseService.BatchActionResult> regenerateTempCases(@RequestBody TempRegenerateRequest request) {
         try {

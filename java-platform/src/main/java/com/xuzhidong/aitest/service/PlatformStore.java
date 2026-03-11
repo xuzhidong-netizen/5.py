@@ -121,6 +121,63 @@ public class PlatformStore {
         return input;
     }
 
+    public Optional<AiCase> findCaseByRecordId(Long recordId) {
+        if (recordId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(cases.get(recordId));
+    }
+
+    public Optional<AiCase> findCaseByBusinessKey(String sysId, Long caseId) {
+        return cases.values().stream()
+            .filter(item -> Objects.equals(item.getSysId(), sysId) && Objects.equals(item.getCaseId(), caseId))
+            .findFirst();
+    }
+
+    public synchronized AiCase updateCase(Long recordId, AiCase update) {
+        AiCase existing = cases.get(recordId);
+        if (existing == null) {
+            throw new IllegalArgumentException("已入库案例不存在");
+        }
+        ensureCaseBusinessKeyAvailable(update.getSysId(), update.getCaseId(), existing.getId());
+        update.setId(existing.getId());
+        update.setCreatedAt(existing.getCreatedAt());
+        cases.put(existing.getId(), update);
+        return update;
+    }
+
+    public synchronized AiCase updateCaseByBusinessKey(String sysId, Long caseId, AiCase update) {
+        AiCase existing = findCaseByBusinessKey(sysId, caseId)
+            .orElseThrow(() -> new IllegalArgumentException("已入库案例不存在"));
+        return updateCase(existing.getId(), update);
+    }
+
+    public synchronized boolean deleteCaseByRecordId(Long recordId) {
+        if (recordId == null) {
+            return false;
+        }
+        return cases.remove(recordId) != null;
+    }
+
+    public synchronized boolean deleteCaseByBusinessKey(String sysId, Long caseId) {
+        Optional<AiCase> existing = findCaseByBusinessKey(sysId, caseId);
+        if (existing.isEmpty()) {
+            return false;
+        }
+        return cases.remove(existing.get().getId()) != null;
+    }
+
+    private void ensureCaseBusinessKeyAvailable(String sysId, Long caseId, Long ignoreRecordId) {
+        boolean duplicate = cases.values().stream().anyMatch(item ->
+            Objects.equals(item.getSysId(), sysId)
+                && Objects.equals(item.getCaseId(), caseId)
+                && !Objects.equals(item.getId(), ignoreRecordId)
+        );
+        if (duplicate) {
+            throw new IllegalArgumentException("案例记录已存在,请重新检查");
+        }
+    }
+
     public List<VersionSupport> listVersionSupports() {
         return new ArrayList<>(versionSupports);
     }
