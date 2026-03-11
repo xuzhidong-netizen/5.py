@@ -527,104 +527,27 @@ function collectSelectedTempIds() {
     .filter((item) => Number.isFinite(item));
 }
 
-function collectSelectedTempIdsForDelete() {
-  return (latestAiInterfaceCandidates || [])
-    .filter((item) => item.selected)
-    .map((item) => Number(item.tempId))
-    .filter((item) => Number.isFinite(item));
-}
-
 function updateLocalTempCase(candidate) {
   const targetIndex = (state.aiTempCases || []).findIndex((item) => Number(item.tempId) === Number(candidate.tempId));
   if (targetIndex < 0) {
     throw new Error(`预生成案例不存在: ${candidate.tempId}`);
   }
   const target = state.aiTempCases[targetIndex];
-  const wasStored = target.status === 1;
+  if (target.status === 1) {
+    throw new Error("已入库案例不允许修改");
+  }
   const merged = {
     ...target,
     ...candidate,
     caseId: Number.isFinite(Number(candidate.caseId)) ? Number(candidate.caseId) : candidate.caseId,
-    updatedAt: nowText()
+    updatedAt: nowText(),
+    status: 0,
+    statusMessage: "待人工审核"
   };
   validateAiInterfaceCandidate(merged);
-
-  if (wasStored) {
-    if (!merged.valid) {
-      throw new Error("已入库案例修改后必填字段不完整，无法保存");
-    }
-    const updatedRecord = updateLocalStoredCase(target, merged);
-    merged.caseRecordId = updatedRecord.id;
-    merged.status = 1;
-    merged.statusMessage = "已入库(已更新)";
-  } else {
-    merged.status = 0;
-    merged.statusMessage = "待人工审核";
-  }
-
   state.aiTempCases[targetIndex] = merged;
   persist();
   return merged;
-}
-
-function updateLocalStoredCase(originalTempCase, mergedTempCase) {
-  const recordIndex = findLocalStoredCaseIndex(originalTempCase);
-  if (recordIndex < 0) {
-    throw new Error("已入库案例不存在，无法修改");
-  }
-
-  const duplicate = (state.cases || []).find((item, index) => (
-    index !== recordIndex
-    && item.sysId === mergedTempCase.sysId
-    && String(item.caseId) === String(mergedTempCase.caseId)
-  ));
-  if (duplicate) {
-    throw new Error("案例记录已存在,请重新检查");
-  }
-
-  const functionRef = (state.functions || []).find((item) => (
-    item.sysId === mergedTempCase.sysId && item.funcNo === mergedTempCase.funcNo
-  ));
-  if (!functionRef) {
-    throw new Error("请先在接口表 T_AI_FUNCTION 中补充功能号信息");
-  }
-
-  const current = state.cases[recordIndex];
-  const normalizedRemark = String(mergedTempCase.caseRemark || "").includes(aiInterfaceCaseTag)
-    ? String(mergedTempCase.caseRemark || "")
-    : `${aiInterfaceCaseTag} ${mergedTempCase.caseRemark || ""}`.trim();
-
-  const updated = {
-    ...current,
-    sysId: mergedTempCase.sysId,
-    sysName: mergedTempCase.sysName,
-    caseId: Number(mergedTempCase.caseId),
-    caseName: mergedTempCase.caseName,
-    caseType: mergedTempCase.caseType || current.caseType || "正例",
-    runFlag: mergedTempCase.runFlag || current.runFlag || "1",
-    caseKvBase: mergedTempCase.caseKvBase,
-    caseKvDynamic: mergedTempCase.caseKvDynamic || "",
-    funcNo: mergedTempCase.funcNo,
-    funcName: functionRef.funcName,
-    funcType: functionRef.funcType,
-    subFuncType: functionRef.subFuncType,
-    moduleName: mergedTempCase.moduleName,
-    caseRemark: normalizedRemark,
-    updatedAt: nowText()
-  };
-
-  state.cases[recordIndex] = updated;
-  return updated;
-}
-
-function findLocalStoredCaseIndex(tempCase) {
-  if (Number.isFinite(Number(tempCase.caseRecordId))) {
-    const byRecordId = (state.cases || []).findIndex((item) => Number(item.id) === Number(tempCase.caseRecordId));
-    if (byRecordId >= 0) return byRecordId;
-  }
-  return (state.cases || []).findIndex((item) => (
-    item.sysId === tempCase.sysId && String(item.caseId) === String(tempCase.caseId)
-  ));
 }
 
 function deleteLocalTempCases(tempIds) {
@@ -632,20 +555,9 @@ function deleteLocalTempCases(tempIds) {
   if (selectedSet.size === 0) {
     throw new Error("请选择要删除的预生成案例");
   }
-  let deleted = 0;
-  state.aiTempCases = (state.aiTempCases || []).filter((item) => {
-    if (!selectedSet.has(Number(item.tempId))) {
-      return true;
-    }
-    if (item.status === 1) {
-      const index = findLocalStoredCaseIndex(item);
-      if (index >= 0) {
-        state.cases.splice(index, 1);
-      }
-    }
-    deleted += 1;
-    return false;
-  });
+  const before = (state.aiTempCases || []).length;
+  state.aiTempCases = (state.aiTempCases || []).filter((item) => !selectedSet.has(Number(item.tempId)));
+  const deleted = before - state.aiTempCases.length;
   persist();
   return {
     action: "delete",
@@ -696,7 +608,7 @@ function renderAiInterfaceCandidates(candidates) {
   const visibleCandidates = filterAiInterfaceCandidates(candidates);
   aiInterfaceTableBody.innerHTML = visibleCandidates.map((item) => `
     <tr>
-      <td><input type="checkbox" class="ai-interface-checkbox" value="${item.tempId}" ${item.valid ? "" : "disabled"} ${item.selected ? "checked" : ""}></td>
+      <td><input type="checkbox" class="ai-interface-checkbox" value="${item.tempId}" ${item.valid && item.status === 0 ? "" : "disabled"} ${item.selected ? "checked" : ""}></td>
       <td>${item.tempId ?? "-"}</td>
       <td>${item.source || "-"}</td>
       <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="sysId" value="${escapeHtml(item.sysId || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
@@ -711,8 +623,8 @@ function renderAiInterfaceCandidates(candidates) {
       <td>
         <div class="table-actions">
           <button type="button" class="table-btn ai-interface-action" data-action="adopt" data-id="${item.tempId}" ${item.status === 1 || item.valid === false ? "disabled" : ""}>${item.valid ? "采纳入库" : "不可采纳"}</button>
-          <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}">${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
-          <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}">删除</button>
+          <button type="button" class="table-btn table-btn-secondary ai-interface-action" data-action="edit" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>${aiInterfaceEditState.get(item.tempId) ? "完成" : "修改"}</button>
+          <button type="button" class="table-btn table-btn-danger ai-interface-action" data-action="delete" data-id="${item.tempId}" ${item.status === 1 ? "disabled" : ""}>删除</button>
         </div>
       </td>
     </tr>
@@ -1622,7 +1534,6 @@ function storeAiTempCases(tempIds, autoExecute = true) {
       caseCreatedCount += 1;
       candidate.status = 1;
       candidate.statusMessage = "已入库";
-      candidate.caseRecordId = caseResult.data?.id ?? null;
       candidate.updatedAt = nowText();
       candidate.selected = false;
       items.push({
@@ -1750,7 +1661,7 @@ aiInterfaceTableBody.addEventListener("change", (event) => {
   const tempId = Number(checkbox.value);
   const candidate = latestAiInterfaceCandidates.find((item) => Number(item.tempId) === tempId);
   if (!candidate) return;
-  candidate.selected = checkbox.checked && candidate.valid;
+  candidate.selected = checkbox.checked && candidate.valid && candidate.status === 0;
   renderAiInterfaceStats(latestAiInterfaceCandidates);
 });
 
@@ -1785,6 +1696,10 @@ aiInterfaceTableBody.addEventListener("click", (event) => {
   }
 
   if (action === "edit") {
+    if (candidate.status === 1) {
+      aiPreCaseMessage.textContent = "已入库案例不允许修改";
+      return;
+    }
     const editing = Boolean(aiInterfaceEditState.get(tempId));
     if (!editing) {
       aiInterfaceEditState.set(tempId, true);
@@ -1912,7 +1827,7 @@ aiInterfaceSaveRunBtn.addEventListener("click", () => {
 });
 
 aiInterfaceDeleteBtn.addEventListener("click", () => {
-  const selectedIds = collectSelectedTempIdsForDelete();
+  const selectedIds = collectSelectedTempIds();
   if (selectedIds.length === 0) {
     aiPreCaseMessage.textContent = "请先勾选需要删除的预生成案例";
     return;
