@@ -62,9 +62,6 @@ const aiPublishedFilterKeyword = document.getElementById("aiPublishedFilterKeywo
 const aiPublishedStats = document.getElementById("aiPublishedStats");
 const aiPublishedTableBody = document.querySelector("#aiPublishedTable tbody");
 const aiPublishedMessage = document.getElementById("aiPublishedMessage");
-const aiCaseManageTabs = document.getElementById("aiCaseManageTabs");
-const aiManageTabButtons = Array.from(document.querySelectorAll("#aiCaseManageTabs .tab-btn"));
-const aiManageTabPanels = Array.from(document.querySelectorAll(".case-manage-panel"));
 
 const aiDocModeTabs = document.getElementById("aiDocModeTabs");
 const aiDocTabButtons = Array.from(document.querySelectorAll("#aiDocModeTabs .tab-btn"));
@@ -84,6 +81,10 @@ const aiDocInfoEngine = document.getElementById("aiDocInfoEngine");
 const aiDocRequestTableBody = document.querySelector("#aiDocRequestTable tbody");
 const aiDocResponseTableBody = document.querySelector("#aiDocResponseTable tbody");
 const aiDocImportTableBody = document.querySelector("#aiDocImportTable tbody");
+const aiDocRequestEditorBody = document.getElementById("aiDocRequestEditorBody");
+const aiDocResponseEditorBody = document.getElementById("aiDocResponseEditorBody");
+const aiDocAddRequestParamBtn = document.getElementById("aiDocAddRequestParamBtn");
+const aiDocAddResponseParamBtn = document.getElementById("aiDocAddResponseParamBtn");
 
 const aiCaseForm = document.getElementById("aiCaseForm");
 const aiCaseImportFile = document.getElementById("aiCaseImportFile");
@@ -196,12 +197,6 @@ function activatePanel(panelId) {
   if (panelId === "aiExecute") {
     loadExecutableCases();
   }
-  if (panelId === "aiCaseManage" && aiManageTabPanels.length > 0) {
-    const hasActive = aiManageTabPanels.some((panel) => panel.classList.contains("active"));
-    if (!hasActive) {
-      activateManageTab("pending");
-    }
-  }
   if (panelId === "aiResults") {
     const runs = queryAiResults("");
     renderAiResults(runs);
@@ -228,12 +223,11 @@ function activateDocTab(tabId) {
 }
 
 function activateManageTab(tabKey) {
-  aiManageTabButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.manageTab === tabKey);
-  });
-  aiManageTabPanels.forEach((panel) => {
-    panel.classList.toggle("active", panel.dataset.manageTabPanel === tabKey);
-  });
+  if (tabKey === "published") {
+    activatePanel("aiPublishedCases");
+    return;
+  }
+  activatePanel("aiPreCases");
 }
 
 function renderTableEmpty(tbody, colspan, text) {
@@ -429,7 +423,7 @@ function buildCaseDetailHtml(candidate) {
     {field: "请求方式", value: candidate.funcRequestMethod || "-"},
     {field: "功能号", value: candidate.funcNo || "-"},
     {field: "模块", value: candidate.moduleName || "-"},
-    {field: "状态", value: candidate.status === 1 ? "已入库" : "待采纳"}
+    {field: "状态", value: candidate.status === 1 ? "已入库" : "预入库"}
   ];
   const baseRows = flattenObjectRows(parseObject(candidate.caseKvBase || {}));
   const dynamicRows = flattenObjectRows(parseObject(candidate.caseKvDynamic || {}));
@@ -530,6 +524,75 @@ function parseJsonArray(text, fieldName) {
   }
 }
 
+function normalizeDocParamType(value) {
+  return mapType(value || "string");
+}
+
+function parseRequiredFlag(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  return ["true", "1", "yes", "y", "on", "是"].includes(text);
+}
+
+function buildDocTypeOptions(selectedType) {
+  const current = normalizeDocParamType(selectedType);
+  const types = ["string", "number", "integer", "boolean", "object", "array"];
+  return types.map((item) => `<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`).join("");
+}
+
+function buildDocEditorRow(kind, seed = {}) {
+  const isRequest = kind === "request";
+  const name = escapeHtml(seed.name || "");
+  const description = escapeHtml(seed.description || "");
+  const example = escapeHtml(seed.example || "");
+  const required = parseRequiredFlag(seed.required);
+  const requiredCell = isRequest
+    ? `<td>
+         <select class="table-input" data-field="required">
+           <option value="true" ${required ? "selected" : ""}>是</option>
+           <option value="false" ${required ? "" : "selected"}>否</option>
+         </select>
+       </td>`
+    : "";
+
+  return `
+    <tr data-editor-row="${kind}">
+      <td><input class="table-input" data-field="name" value="${name}" placeholder="${isRequest ? "参数名" : "字段名"}"/></td>
+      <td>
+        <select class="table-input" data-field="type">
+          ${buildDocTypeOptions(seed.type)}
+        </select>
+      </td>
+      ${requiredCell}
+      <td><input class="table-input" data-field="description" value="${description}" placeholder="说明"/></td>
+      <td><input class="table-input" data-field="example" value="${example}" placeholder="示例值"/></td>
+      <td><button type="button" class="table-btn table-btn-danger ai-doc-row-remove-btn">删除</button></td>
+    </tr>
+  `;
+}
+
+function appendDocEditorRow(body, kind) {
+  if (!body) return;
+  body.insertAdjacentHTML("beforeend", buildDocEditorRow(kind));
+}
+
+function readDocEditorRows(body, kind) {
+  if (!body) return [];
+  const isRequest = kind === "request";
+  return Array.from(body.querySelectorAll(`tr[data-editor-row="${kind}"]`))
+    .map((row) => {
+      const name = String(row.querySelector('[data-field="name"]')?.value || "").trim();
+      if (!name) return null;
+      return {
+        name,
+        type: normalizeDocParamType(row.querySelector('[data-field="type"]')?.value || "string"),
+        required: isRequest ? parseRequiredFlag(row.querySelector('[data-field="required"]')?.value) : false,
+        description: String(row.querySelector('[data-field="description"]')?.value || "").trim(),
+        example: String(row.querySelector('[data-field="example"]')?.value || "").trim()
+      };
+    })
+    .filter((item) => Boolean(item));
+}
+
 function normalizeMethod(method) {
   return String(method || "POST").toUpperCase();
 }
@@ -561,12 +624,37 @@ function mapType(source) {
 
 function buildApiDefinition(form) {
   const data = formToJson(form);
+  let requestParams = readDocEditorRows(aiDocRequestEditorBody, "request");
+  let responseParams = readDocEditorRows(aiDocResponseEditorBody, "response");
+  if (requestParams.length === 0 && data.requestParams) {
+    requestParams = parseJsonArray(data.requestParams, "requestParams");
+  }
+  if (responseParams.length === 0 && data.responseParams) {
+    responseParams = parseJsonArray(data.responseParams, "responseParams");
+  }
+  if (requestParams.length === 0) {
+    throw new Error("请至少填写一个请求参数");
+  }
   return {
     apiName: data.apiName,
     apiPath: data.apiPath,
-    method: data.method,
-    requestParams: parseJsonArray(data.requestParams, "requestParams"),
-    responseParams: parseJsonArray(data.responseParams || "[]", "responseParams")
+    method: normalizeMethod(data.method),
+    requestParams: requestParams.map((item) => ({
+      name: String(item.name || "").trim(),
+      type: normalizeDocParamType(item.type || "string"),
+      required: parseRequiredFlag(item.required),
+      description: String(item.description || "").trim(),
+      example: String(item.example || "").trim()
+    })),
+    responseParams: responseParams
+      .map((item) => ({
+        name: String(item.name || "").trim(),
+        type: normalizeDocParamType(item.type || "string"),
+        required: parseRequiredFlag(item.required),
+        description: String(item.description || "").trim(),
+        example: String(item.example || "").trim()
+      }))
+      .filter((item) => item.name)
   };
 }
 
@@ -1067,7 +1155,7 @@ function renderAiInterfaceCandidates(candidates) {
       <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseId" value="${escapeHtml(String(item.caseId ?? ""))}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
       <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="caseName" value="${escapeHtml(item.caseName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
       <td><input class="table-input ai-interface-field" data-id="${item.tempId}" data-field="moduleName" value="${escapeHtml(item.moduleName || "")}" ${aiInterfaceEditState.get(item.tempId) ? "" : "disabled"}></td>
-      <td>待采纳<br>${item.validationMessage || item.statusMessage || "-"}</td>
+      <td>预入库<br>${item.validationMessage || item.statusMessage || "-"}</td>
       <td>
         <div class="table-actions">
           <button type="button" class="table-btn table-btn-view ai-interface-action" data-action="detail" data-id="${item.tempId}">查看</button>
@@ -2535,7 +2623,6 @@ aiInterfaceGenerateBtn.addEventListener("click", () => {
     const failed = tempCases.filter((item) => item.valid === false).length;
     renderGeneratedTempRows(tempCases);
     loadTempCases();
-    activatePanel("aiCaseManage");
     activateManageTab("pending");
     renderAiInterfaceSaveResults([]);
     renderAiInterfaceExecution(null);
@@ -2712,10 +2799,11 @@ if (aiPublishedReloadBtn) {
 
 if (aiPublishedCreateBtn) {
   aiPublishedCreateBtn.addEventListener("click", () => {
-    aiPublishedMessage.textContent = "请先在“待采纳案例”中生成并采纳，或对现有案例点“修改”后保存。";
+    aiPublishedMessage.textContent = "请先在“预入库案例”中生成并采纳，或对现有案例点“修改”后保存。";
   });
 }
 
+if (aiDocForm) {
 if (aiDocModeTabs) {
   aiDocModeTabs.addEventListener("click", (event) => {
     const button = event.target.closest(".tab-btn");
@@ -2726,17 +2814,41 @@ if (aiDocModeTabs) {
   });
 }
 
-if (aiCaseManageTabs) {
-  aiCaseManageTabs.addEventListener("click", (event) => {
-    const button = event.target.closest(".tab-btn");
-    if (!button) {
+if (aiDocAddRequestParamBtn) {
+  aiDocAddRequestParamBtn.addEventListener("click", () => {
+    appendDocEditorRow(aiDocRequestEditorBody, "request");
+  });
+}
+
+if (aiDocAddResponseParamBtn) {
+  aiDocAddResponseParamBtn.addEventListener("click", () => {
+    appendDocEditorRow(aiDocResponseEditorBody, "response");
+  });
+}
+
+if (aiDocRequestEditorBody) {
+  aiDocRequestEditorBody.addEventListener("click", (event) => {
+    const btn = event.target.closest(".ai-doc-row-remove-btn");
+    if (!btn) {
       return;
     }
-    const key = button.dataset.manageTab;
-    if (!key) {
+    const row = btn.closest('tr[data-editor-row="request"]');
+    if (row) {
+      row.remove();
+    }
+  });
+}
+
+if (aiDocResponseEditorBody) {
+  aiDocResponseEditorBody.addEventListener("click", (event) => {
+    const btn = event.target.closest(".ai-doc-row-remove-btn");
+    if (!btn) {
       return;
     }
-    activateManageTab(key);
+    const row = btn.closest('tr[data-editor-row="response"]');
+    if (row) {
+      row.remove();
+    }
   });
 }
 
@@ -2901,6 +3013,7 @@ aiDocImportExportExcelBtn.addEventListener("click", () => {
     aiDocMessage.textContent = `导出失败：${error.message}`;
   }
 });
+}
 
 if (aiCaseForm) {
   aiCaseForm.addEventListener("submit", (event) => {
@@ -2948,13 +3061,13 @@ if (aiCaseImportFile) {
 
 if (aiCaseImportGenerateBtn) {
   aiCaseImportGenerateBtn.addEventListener("click", () => {
-    const content = String(aiCaseImportText?.value || "").trim();
-    if (!content) {
-      if (aiCaseMessage) {
-        aiCaseMessage.textContent = "请先粘贴或导入接口文档";
+      const content = String(aiCaseImportText?.value || "").trim();
+      if (!content) {
+        if (aiCaseMessage) {
+        aiCaseMessage.textContent = "请先粘贴或导入案例输入内容";
+        }
+        return;
       }
-      return;
-    }
     try {
       const definitions = parseDefinitionsFromImportedDoc(content, latestCaseImportedFormat);
       if (definitions.length === 0) {
@@ -3202,10 +3315,9 @@ renderGeneratedTempRows([]);
 renderPublishedCandidates([]);
 renderAiInterfaceSaveResults([]);
 renderAiInterfaceExecution(null);
-activateManageTab("pending");
 loadTempCases();
 loadExecutableCases();
-updateFlowStage("aiDocs");
+updateFlowStage("aiInterfaceCases");
 
 if (legacyConsoleEnabled) {
   setInterval(refreshAll, 5000);

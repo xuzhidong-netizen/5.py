@@ -15,9 +15,9 @@
             <div class="menu-group">
                 <div class="menu-group-title">AI测试</div>
                 <div class="menu-group-items">
-                    <button data-panel="aiDocs" class="active">① 接口文档</button>
-                    <button data-panel="aiInterfaceCases">② AI生成案例</button>
-                    <button data-panel="aiCaseManage">③ AI生成案例管理</button>
+                    <button data-panel="aiInterfaceCases" class="active">① AI生成案例</button>
+                    <button data-panel="aiPreCases">② 预入库案例</button>
+                    <button data-panel="aiPublishedCases">③ 已入库案例</button>
                     <button data-panel="aiExecute">④ 用例执行</button>
                     <button data-panel="aiResults">⑤ 执行结果</button>
                 </div>
@@ -34,13 +34,11 @@
     </aside>
 
     <main class="content">
-        <section id="aiInterfaceCases" class="panel" data-flow-stage="generate">
-            <h2>AI测试 · ② AI生成案例</h2>
+        <section id="aiInterfaceCases" class="panel active" data-flow-stage="generate">
+            <h2>AI测试 · ① AI生成案例</h2>
             <div class="flow-hint">
                 <span class="flow-label">接口测试流程</span>
                 <div class="flow-steps">
-                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
-                    <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
                     <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="manage">案例管理</span>
@@ -54,9 +52,8 @@
                 <h3>生成配置</h3>
                 <div class="query-grid">
                     <div class="form-grid">
-                        <label class="field-label">接口文档来源</label>
-                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="doc" checked>从文档选择</label>
-                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="text">文本输入</label>
+                        <label class="field-label">案例输入来源</label>
+                        <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="text" checked>文本输入</label>
                         <label class="checkbox-inline"><input type="radio" name="aiCaseSource" value="excel">Excel导入</label>
                     </div>
                     <div class="form-grid">
@@ -71,7 +68,7 @@
             </div>
             <div class="block">
                 <h3>文件导入与文本输入</h3>
-                <p>支持接口文档、文本描述、Excel导入。AI 生成后进入“待采纳案例”，审核后再入库执行。</p>
+                <p>支持文本描述、Excel导入。AI 生成后进入“预入库案例”，审核后再入库执行。</p>
                 <div class="form-grid">
                     <input id="aiInterfaceFile" type="file" accept=".xlsx,.xls,.csv,.json,.txt"/>
                     <textarea id="aiInterfaceText" placeholder="支持文本描述 / JSON / CSV / Key:Value；可附带成功案例让AI扩展边界、异常、参数缺失场景"></textarea>
@@ -98,13 +95,11 @@
             </div>
         </section>
 
-        <section id="aiCaseManage" class="panel" data-flow-stage="manage">
-            <h2>AI测试 · ③ AI生成案例管理</h2>
+        <section id="aiPreCases" class="panel" data-flow-stage="manage">
+            <h2>AI测试 · ② 预入库案例</h2>
             <div class="flow-hint">
                 <span class="flow-label">接口测试流程</span>
                 <div class="flow-steps">
-                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
-                    <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
                     <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="manage">案例管理</span>
@@ -114,123 +109,85 @@
                     <span class="flow-step" data-flow-stage="result">结果</span>
                 </div>
             </div>
-            <p class="panel-hint">在一个页面内统一管理“待采纳案例”和“已入库案例”。</p>
-            <div class="tabs" id="aiCaseManageTabs">
-                <button id="aiManagePendingTabBtn" type="button" class="tab-btn active" data-manage-tab="pending">待采纳案例</button>
-                <button id="aiManagePublishedTabBtn" type="button" class="tab-btn" data-manage-tab="published">已入库案例</button>
+            <p class="panel-hint">管理刚生成、尚未正式入库的案例。</p>
+            <div class="actions">
+                <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
+                <button id="aiInterfaceSaveRunBtn" type="button">批量采纳入库并执行</button>
+                <button id="aiInterfaceDeleteBtn" type="button">批量删除</button>
+                <button id="aiInterfaceRegenerateBtn" type="button">重新生成</button>
+                <button id="aiInterfaceReloadBtn" type="button">刷新</button>
+                <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
+                <select id="aiInterfaceFilterStatus">
+                    <option value="pending">仅未入库</option>
+                    <option value="valid">仅可入库</option>
+                    <option value="invalid">仅不可入库</option>
+                    <option value="selected">仅已采纳</option>
+                </select>
             </div>
-
-            <div id="aiManagePendingTab" class="case-manage-panel active" data-manage-tab-panel="pending">
-                <div class="actions">
-                    <button id="aiInterfaceSelectAllBtn" type="button">全选/取消全选</button>
-                    <button id="aiInterfaceSaveRunBtn" type="button">批量采纳入库并执行</button>
-                    <button id="aiInterfaceDeleteBtn" type="button">批量删除</button>
-                    <button id="aiInterfaceRegenerateBtn" type="button">重新生成</button>
-                    <button id="aiInterfaceReloadBtn" type="button">刷新</button>
-                    <input id="aiInterfaceFilterKeyword" type="text" placeholder="搜索 funcNo / caseName / sysId"/>
-                    <select id="aiInterfaceFilterStatus">
-                        <option value="pending">仅未入库</option>
-                        <option value="valid">仅可入库</option>
-                        <option value="invalid">仅不可入库</option>
-                        <option value="selected">仅已采纳</option>
-                    </select>
-                </div>
-                <div id="aiInterfaceStats" class="stats-line"></div>
-                <table class="table" id="aiInterfaceTable">
+            <div id="aiInterfaceStats" class="stats-line"></div>
+            <table class="table" id="aiInterfaceTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>tempId</th>
+                    <th>来源</th>
+                    <th>sysId</th>
+                    <th>sysName</th>
+                    <th>funcNo</th>
+                    <th>funcName</th>
+                    <th>funcType</th>
+                    <th>caseId</th>
+                    <th>caseName</th>
+                    <th>moduleName</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiPreCaseMessage" class="message"></div>
+            <div class="block">
+                <h3>入库结果</h3>
+                <table class="table" id="aiInterfaceSaveTable">
                     <thead>
                     <tr>
-                        <th>选择</th>
                         <th>tempId</th>
-                        <th>来源</th>
-                        <th>sysId</th>
-                        <th>sysName</th>
                         <th>funcNo</th>
-                        <th>funcName</th>
-                        <th>funcType</th>
                         <th>caseId</th>
                         <th>caseName</th>
-                        <th>moduleName</th>
-                        <th>状态</th>
-                        <th>操作</th>
+                        <th>接口新增</th>
+                        <th>结果</th>
+                        <th>说明</th>
                     </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
-                <div id="aiPreCaseMessage" class="message"></div>
-                <div class="block">
-                    <h3>入库结果</h3>
-                    <table class="table" id="aiInterfaceSaveTable">
-                        <thead>
-                        <tr>
-                            <th>tempId</th>
-                            <th>funcNo</th>
-                            <th>caseId</th>
-                            <th>caseName</th>
-                            <th>接口新增</th>
-                            <th>结果</th>
-                            <th>说明</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <div class="block">
-                    <h3>自动执行结果</h3>
-                    <table class="table" id="aiInterfaceExecutionTable">
-                        <thead>
-                        <tr>
-                            <th>hisId</th>
-                            <th>状态</th>
-                            <th>模式</th>
-                            <th>版本</th>
-                            <th>总数</th>
-                            <th>成功</th>
-                            <th>失败</th>
-                            <th>通过率</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
             </div>
-
-            <div id="aiManagePublishedTab" class="case-manage-panel" data-manage-tab-panel="published">
-                <div class="actions">
-                    <button id="aiPublishedCreateBtn" type="button">新增案例</button>
-                    <button id="aiPublishedSelectAllBtn" type="button">全选/取消全选</button>
-                    <button id="aiPublishedDeleteBtn" type="button">批量删除</button>
-                    <button id="aiPublishedCancelBtn" type="button">批量取消入库</button>
-                    <button id="aiPublishedReloadBtn" type="button">刷新</button>
-                    <input id="aiPublishedFilterKeyword" type="text" placeholder="搜索 caseName / funcNo / sysId"/>
-                </div>
-                <div id="aiPublishedStats" class="stats-line"></div>
-                <table class="table" id="aiPublishedTable">
+            <div class="block">
+                <h3>自动执行结果</h3>
+                <table class="table" id="aiInterfaceExecutionTable">
                     <thead>
                     <tr>
-                        <th>选择</th>
-                        <th>tempId</th>
-                        <th>caseName</th>
-                        <th>funcNo</th>
-                        <th>请求方式</th>
-                        <th>接口地址</th>
+                        <th>hisId</th>
                         <th>状态</th>
-                        <th>更新时间</th>
-                        <th>操作</th>
+                        <th>模式</th>
+                        <th>版本</th>
+                        <th>总数</th>
+                        <th>成功</th>
+                        <th>失败</th>
+                        <th>通过率</th>
                     </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
-                <div id="aiPublishedMessage" class="message"></div>
             </div>
         </section>
 
-        <section id="aiDocs" class="panel active" data-flow-stage="docs">
-            <h2>AI测试 · ① 接口文档</h2>
+        <section id="aiPublishedCases" class="panel" data-flow-stage="manage">
+            <h2>AI测试 · ③ 已入库案例</h2>
             <div class="flow-hint">
                 <span class="flow-label">接口测试流程</span>
                 <div class="flow-steps">
-                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
-                    <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
                     <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="manage">案例管理</span>
@@ -240,141 +197,39 @@
                     <span class="flow-step" data-flow-stage="result">结果</span>
                 </div>
             </div>
-            <div class="tabs" id="aiDocModeTabs">
-                <button type="button" class="tab-btn active" data-tab-target="aiDocTextMode">文本生成</button>
-                <button type="button" class="tab-btn" data-tab-target="aiDocImportMode">Excel导入</button>
-                <button type="button" class="tab-btn" data-tab-target="aiDocTemplateMode">示例模板</button>
-            </div>
-            <div id="aiDocTextMode" class="tab-panel active">
-                <div class="query-grid doc-grid">
-                    <form id="aiDocForm" class="form-grid block">
-                        <h3>文本生成</h3>
-                        <input name="apiName" value="下单接口" placeholder="接口名称" required/>
-                        <input name="apiPath" value="/api/order/create" placeholder="接口地址" required/>
-                        <select name="method">
-                            <option>POST</option>
-                            <option>GET</option>
-                            <option>PUT</option>
-                            <option>DELETE</option>
-                        </select>
-                        <textarea name="requestParams" placeholder="请求参数(JSON数组)" required>[{"name":"userId","type":"long","required":true,"description":"用户ID","example":"123"},{"name":"price","type":"double","required":true,"description":"价格","example":"99.9"},{"name":"productId","type":"string","required":true,"description":"商品ID","example":"P123"}]</textarea>
-                        <textarea name="responseParams" placeholder="返回字段(JSON数组)">[{"name":"orderId","type":"string","required":true,"description":"订单ID","example":"O1001"},{"name":"message","type":"string","required":true,"description":"结果消息","example":"订单成功"}]</textarea>
-                        <button type="submit">生成接口文档</button>
-                    </form>
-                    <div class="block">
-                        <h3>输入示例</h3>
-                        <pre>接口：下单接口
-路径：/api/order
-方法：POST
-
-参数：
-account
-stockCode
-price
-qty</pre>
-                    </div>
-                </div>
-            </div>
-            <div id="aiDocImportMode" class="tab-panel">
-                <div class="block">
-                    <h3>Excel/文档导入生成（AI参与）</h3>
-                    <p>支持导入 OpenAPI JSON/YAML 文档，AI 自动生成文档结构与说明。</p>
-                    <div class="form-grid">
-                        <input id="aiDocImportFile" type="file" accept=".json,.yaml,.yml,.txt"/>
-                        <textarea id="aiDocImportText" placeholder="粘贴 OpenAPI 文档（JSON / YAML）"></textarea>
-                        <div class="actions">
-                            <button id="aiDocImportGenerateBtn" type="button">导入文档并生成接口文档</button>
-                            <button id="aiDocDownloadTemplateBtn" type="button">下载Excel模板</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="aiDocTemplateMode" class="tab-panel">
-                <div class="block">
-                    <h3>示例模板</h3>
-                    <p>首次使用建议先下载模板，按模板填充后再导入，可减少字段错误。</p>
-                    <pre>{
-  "apiName": "下单接口",
-  "apiPath": "/api/order",
-  "method": "POST",
-  "requestParams": [
-    {"name":"account","type":"string","required":true},
-    {"name":"stockCode","type":"string","required":true},
-    {"name":"price","type":"number","required":true},
-    {"name":"qty","type":"integer","required":true}
-  ],
-  "responseParams": [
-    {"name":"code","type":"string","required":true},
-    {"name":"message","type":"string","required":true}
-  ]
-}</pre>
-                </div>
-            </div>
+            <p class="panel-hint">管理正式案例库中的已入库案例。</p>
             <div class="actions">
-                <button id="aiDocExportExcelBtn" type="button">导出当前接口文档Excel</button>
-                <button id="aiDocImportExportExcelBtn" type="button">导出导入结果Excel</button>
+                <button id="aiPublishedCreateBtn" type="button">新增案例</button>
+                <button id="aiPublishedSelectAllBtn" type="button">全选/取消全选</button>
+                <button id="aiPublishedDeleteBtn" type="button">批量删除</button>
+                <button id="aiPublishedCancelBtn" type="button">批量取消入库</button>
+                <button id="aiPublishedReloadBtn" type="button">刷新</button>
+                <input id="aiPublishedFilterKeyword" type="text" placeholder="搜索 caseName / funcNo / sysId"/>
             </div>
-            <div id="aiDocMessage" class="message"></div>
-            <div class="query-grid">
-                <div class="block">
-                    <h3>接口信息卡片</h3>
-                    <div id="aiDocInfoCard" class="kv-grid">
-                        <div class="kv-item"><span class="kv-label">接口名称</span><span id="aiDocInfoName" class="kv-value">-</span></div>
-                        <div class="kv-item"><span class="kv-label">接口路径</span><span id="aiDocInfoPath" class="kv-value">-</span></div>
-                        <div class="kv-item"><span class="kv-label">请求方式</span><span id="aiDocInfoMethod" class="kv-value">-</span></div>
-                        <div class="kv-item"><span class="kv-label">AI引擎</span><span id="aiDocInfoEngine" class="kv-value">-</span></div>
-                    </div>
-                    <h3>请求参数表格</h3>
-                    <table class="table" id="aiDocRequestTable">
-                        <thead>
-                        <tr>
-                            <th>参数</th>
-                            <th>类型</th>
-                            <th>必填</th>
-                            <th>说明</th>
-                            <th>示例</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <div class="block">
-                    <h3>返回字段表格</h3>
-                    <table class="table" id="aiDocResponseTable">
-                        <thead>
-                        <tr>
-                            <th>字段</th>
-                            <th>类型</th>
-                            <th>说明</th>
-                            <th>示例</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    <h3>导入接口列表</h3>
-                    <table class="table" id="aiDocImportTable">
-                        <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>接口名称</th>
-                            <th>接口路径</th>
-                            <th>请求方式</th>
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
+            <div id="aiPublishedStats" class="stats-line"></div>
+            <table class="table" id="aiPublishedTable">
+                <thead>
+                <tr>
+                    <th>选择</th>
+                    <th>tempId</th>
+                    <th>caseName</th>
+                    <th>funcNo</th>
+                    <th>请求方式</th>
+                    <th>接口地址</th>
+                    <th>状态</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="aiPublishedMessage" class="message"></div>
         </section>
         <section id="aiExecute" class="panel" data-flow-stage="execute">
             <h2>AI测试 · ④ 用例执行</h2>
             <div class="flow-hint">
                 <span class="flow-label">接口测试流程</span>
                 <div class="flow-steps">
-                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
-                    <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
                     <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="manage">案例管理</span>
@@ -440,8 +295,6 @@ qty</pre>
             <div class="flow-hint">
                 <span class="flow-label">接口测试流程</span>
                 <div class="flow-steps">
-                    <span class="flow-step" data-flow-stage="docs">接口文档</span>
-                    <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="generate">AI生成案例</span>
                     <span class="flow-arrow">→</span>
                     <span class="flow-step" data-flow-stage="manage">案例管理</span>
@@ -842,7 +695,7 @@ qty</pre>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr><td>待采纳案例数</td><td>1,126</td><td>-4.2%</td></tr>
+                    <tr><td>预入库案例数</td><td>1,126</td><td>-4.2%</td></tr>
                     <tr><td>已入库案例数</td><td>5,487</td><td>+6.8%</td></tr>
                     <tr><td>取消入库次数</td><td>212</td><td>+1.6%</td></tr>
                     <tr><td>修改次数</td><td>1,034</td><td>+5.2%</td></tr>
